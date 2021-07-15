@@ -10,15 +10,26 @@ abstract type Input{M, T} <: FieldVector{M, T} end
 abstract type Measurement{S, T} <: FieldVector{S, T} end  
 abstract type ErrorMeasurement{Sₑ, T} <: FieldVector{Sₑ, T} end  
 
+###############################################################################
+#                      Process / Process Jacobian
+###############################################################################
+function process(state::State)
+    return state
+end
 
-###############################################################################
-#                       Error Mapping Jacobians
-###############################################################################
-function error_state_jacobian(state::State)
+function error_process_jacobian(measurement::Measurement)
     return I
 end
 
-function error_measurement_jacobian(measurement::Measurement)
+
+###############################################################################
+#                       Measure / Measurement Jacobian
+###############################################################################
+function measure(state::State)::Measurement
+    return state
+end
+
+function error_measure_jacobian(state::State, measurement::Measurement)
     return I
 end
 

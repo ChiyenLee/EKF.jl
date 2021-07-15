@@ -12,8 +12,6 @@ module EKF
     using LinearAlgebra
 
     include("abstract_states.jl") 
-    include("states/trunktypes.jl")   
-
 
     struct ErrorStateFilter{S<:State, ES<:ErrorState, IN<:Input, 
                             M<:Measurement, EM<:ErrorMeasurement} 
@@ -29,7 +27,6 @@ module EKF
             try 
                 process(est_state, rand(IN), rand())
             catch MethodError
-                process(est_state, rand(IN), rand())
                 println("User must define the `process` function: \n`process(state::S, input::IN, dt::Float64)`")
                 error()
             end
@@ -42,21 +39,16 @@ module EKF
             try 
                 error_process_jacobian(est_state, rand(IN), rand())
             catch MethodError
-                error_process_jacobian(est_state, rand(IN), rand())
-
                 println("User must define the `error_process_jacobian` function: \n`error_process_jacobian(state::S, input::IN, dt::Float64)`")
                 error()
             end
             try 
                 error_measure_jacobian(est_state, rand(M))
             catch MethodError
-                error_measure_jacobian(est_state, rand(M))
                 println("User must define the `error_measure_jacobian` function: \n`error_measure_jacobian(state::S)`")
                 error()
             end
-            # @assert all(size(process_cov) .= length(ES))
-            # @assert all(size(measure_cov) .= length(EM))
-
+            
             return new{S, ES, IN, M, EM}(est_state, est_cov, process_cov, measure_cov)
         end
     end
