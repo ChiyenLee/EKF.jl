@@ -1,4 +1,7 @@
 module EKF
+    export State, ErrorState, Input, Measurement, ErrorMeasurement
+    export TrunkState, TrunkError, ImuInput, Vicon, ViconError
+    export ErrorStateFilter, estimateState!, prediction
 
     using StaticArrays
     using LinearAlgebra: inv, I, issymmetric, isposdef
@@ -7,18 +10,12 @@ module EKF
     using Rotations: rotation_error, CayleyMap, RotationError, add_error, ∇differential
     using SparseArrays
     using LinearAlgebra
-    export getComponents
-    export TrunkState, TrunkError, ImuInput, Vicon, ViconError
-    
 
     include("abstract_states.jl") 
     include("states/trunktypes.jl")   
 
 
-    # struct ErrorStateFilter{S <: State{a} where a, ES <: ErrorState{c} where {c}, In <: Input, 
-                            # M <: Measurement, EM <: ErrorMeasurement}
-    struct ErrorStateFilter{S<:State, ES<:ErrorState, 
-                            IN<:Input, 
+    struct ErrorStateFilter{S<:State, ES<:ErrorState, IN<:Input, 
                             M<:Measurement, EM<:ErrorMeasurement} 
         est_state::S
         est_cov::MMatrix
@@ -32,6 +29,7 @@ module EKF
             try 
                 process(est_state, rand(IN), rand())
             catch MethodError
+                process(est_state, rand(IN), rand())
                 println("User must define the `process` function: \n`process(state::S, input::IN, dt::Float64)`")
             end
             try 
@@ -49,49 +47,40 @@ module EKF
             catch MethodError
                 println("User must define the `process` function: \n`error_measure_jacobian(state::S)`")
             end
+            @assert all(size(process_cov) .= length(ES))
+            @assert all(size(measure_cov) .= length(EM))
 
-            return new{S, ES, In, M, EM}(est_state, est_cov, process_cov, measure_cov)
+            return new{S, ES, IN, M, EM}(est_state, est_cov, process_cov, measure_cov)
         end
     end
 
 
-    function prediction(ekf::ErrorStateFilter{S, ES, In, M, EM}, 
-                        xₖₗₖ::S, Pₖₗₖ::MMatrix, uₖ::In; 
-                        dt=0.1) where {S<:State, ES<:ErrorState, In<:Input, 
-                                       M<:Measurement, EM<:ErrorMeasurement}
+    function prediction(ekf::ErrorStateFilter{S, ES, IN, M, EM}, 
+                        xₖₗₖ::S, Pₖₗₖ::MMatrix, uₖ::IN; dt=0.1
+                        ) where {S<:State, ES<:ErrorState, IN<:Input, 
+                                 M<:Measurement, EM<:ErrorMeasurement}
         # Relabeling
-        # xₖₗₖ = ekf.est_state
-        # Pₖₗₖ = ekf.est_cov
-        # uₖ = input
         W = ekf.process_cov
 
-        xₖ₊₁ₗₖ = ekf.process(xₖₗₖ, uₖ, dt)
-        Jₖ = ekf.error_state_jacobian(xₖₗₖ)         # ∂(xₖ₋₁)/∂(dxₖ₋₁)
-        Jₖ₊₁ = ekf.error_state_jacobian(xₖ₊₁ₗₖ)     # ∂(dxₖ)/∂xₖ
-        # Aₖ = ∂(dxₖ)/∂xₖ * ∂f(xₖ,uₖ)/∂(xₖ₋₁) * ∂(xₖ₋₁)/∂(dxₖ₋₁)
-        Aₖ = (Jₖ₊₁)' * ekf.process_jacobian(xₖₗₖ, uₖ, dt) * Jₖ
+        xₖ₊₁ₗₖ = process(xₖₗₖ, uₖ, dt)
+        Aₖ = error_process_jacobian(xₖₗₖ, uₖ, dt)
+
         Pₖ₊₁ₗₖ = Aₖ * Pₖₗₖ * (Aₖ)' + W
 
         return xₖ₊₁ₗₖ, Pₖ₊₁ₗₖ
     end
 
 
-    function innovation(ekf::ErrorStateFilter{S, ES, In, M, EM}, 
-                        xₖ₊₁ₗₖ::S, Pₖ₊₁ₗₖ::MMatrix, 
-                        yₖ::M) where {S<:State, ES<:ErrorState, In<:Input, 
-                                     M<:Measurement, EM<:ErrorMeasurement}
+    function innovation(ekf::ErrorStateFilter{S, ES, IN, M, EM}, 
+                        xₖ₊₁ₗₖ::S, Pₖ₊₁ₗₖ::MMatrix, yₖ::M
+                        ) where {S<:State, ES<:ErrorState, IN<:Input, 
+                                 M<:Measurement, EM<:ErrorMeasurement}
         # Relabeling
-        # xₖ₊₁ₗₖ = state
-        # Pₖ₊₁ₗₖ = errorCov
-        # yₖ = measurement
         V = ekf.measure_cov
 
         # Innovation
-        zₖ₊₁ = ekf.measure(xₖ₊₁ₗₖ) ⊖ₘ yₖ
-        Jₖ₊₁ = ekf.error_state_jacobian(xₖ₊₁ₗₖ)          # ∂(xₖₗₖ₋₁)/∂(dxₖₗₖ₋₁)
-        Gₖ₊₁ = ekf.error_measurement_jacobian(yₖ, xₖ₊₁ₗₖ)       # ∂(dyₖ)/∂yₖ
-        # Cₖ₊₁ = ∂(dz)/∂z * ∂z/∂x * ∂x/∂(dx) |_{xₖₗₖ₋₁, zₖ}
-        Cₖ₊₁ = (Gₖ₊₁)' * ekf.measure_jacobian(xₖ₊₁ₗₖ) * Jₖ₊₁
+        zₖ₊₁ = measure(xₖ₊₁ₗₖ) ⊖ₘ yₖ
+        Cₖ₊₁ = error_measure_jacobian(xₖ₊₁ₗₖ, yₖ)
         Sₖ₊₁ = Cₖ₊₁ * Pₖ₊₁ₗₖ * (Cₖ₊₁)' + V
 
         # Kalman Gain
@@ -101,11 +90,11 @@ module EKF
     end
 
 
-    function update!(ekf::ErrorStateFilter{S, ES, In, M, EM}, 
+    function update!(ekf::ErrorStateFilter{S, ES, IN, M, EM}, 
                      xₖ₊₁ₗₖ::S, Pₖ₊₁ₗₖ::MMatrix, zₖ₊₁::EM, 
-                     Cₖ₊₁::MMatrix, Lₖ₊₁::MMatrix) where {S<:State, ES<:ErrorState, 
-                                                         In<:Input, 
-                                                         M<:Measurement, EM<:ErrorMeasurement}
+                     Cₖ₊₁::MMatrix, Lₖ₊₁::MMatrix
+                     ) where {S<:State, ES<:ErrorState, IN<:Input, 
+                              M<:Measurement, EM<:ErrorMeasurement}
         # Update
         xₖ₊₁ₗₖ₊₁ = xₖ₊₁ₗₖ ⊕ₛ ES(Lₖ₊₁ * zₖ₊₁)
         Pₖ₊₁ₗₖ₊₁ = Pₖ₊₁ₗₖ - Lₖ₊₁ * Cₖ₊₁ * Pₖ₊₁ₗₖ
@@ -117,11 +106,10 @@ module EKF
     end
 
 
-    function estimateState!(ekf::ErrorStateFilter{S, ES, In, M, EM}, 
-                            input::In, measurement::M, 
-                            dt::Float64) where {S<:State, ES<:ErrorState, 
-                                                In<:Input, 
-                                                M<:Measurement, EM<:ErrorMeasurement}
+    function estimateState!(ekf::ErrorStateFilter{S, ES, IN, M, EM}, 
+                            input::IN, measurement::M, dt::Float64
+                            ) where {S<:State, ES<:ErrorState, IN<:Input, 
+                                     M<:Measurement, EM<:ErrorMeasurement}
         # Relabeling
         xₖₗₖ = ekf.est_state
         Pₖₗₖ = ekf.est_cov

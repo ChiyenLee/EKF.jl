@@ -2,124 +2,57 @@ using StaticArrays
 using LinearAlgebra: I
 using SparseArrays
 using Rotations: UnitQuaternion, RotationError, CayleyMap, add_error
-using Rotations: rotation_error, params, ∇differential
+using Rotations: rotation_error, params, ∇differential, kinematics
 
 
 ###############################################################################
-#
+#                               Dynamics
 ###############################################################################
-mutable struct ImuState{T} <: State{16, T}
-    p𝑥::T; p𝑦::T; p𝑧::T
-    q𝑤::T; q𝑥::T; q𝑦::T; q𝑧::T
-    v𝑥::T; v𝑦::T; v𝑧::T
-    α𝑥::T; α𝑦::T; α𝑧::T
-    β𝑥::T; β𝑦::T; β𝑧::T
-end
-
-function getComponents(state::ImuState)
-    return (state[1:3], UnitQuaternion(state[4:7]..., false), state[8:10],
-            state[11:13], state[14:16])
-end
-
-###############################################################################
-#
-###############################################################################
-mutable struct ImuErrorState{T} <: ErrorState{15, T}
-    𝕕p𝑥::T; 𝕕p𝑦::T; 𝕕p𝑧::T
-    𝕕q𝑥::T; 𝕕q𝑦::T; 𝕕q𝑧::T
-    𝕕v𝑥::T; 𝕕v𝑦::T; 𝕕v𝑧::T
-    𝕕α𝑥::T; 𝕕α𝑦::T; 𝕕α𝑧::T
-    𝕕β𝑥::T; 𝕕β𝑦::T; 𝕕β𝑧::T
-end
-
-function getComponents(err::ImuErrorState)
-    return (err[1:3], RotationError(SVector{3}(err[4:6]), CayleyMap()), err[7:9],
-            err[10:12], err[13:15])
-end
-
-###############################################################################
-#
-###############################################################################
-mutable struct ImuInput{T} <: Input{6, T}
-    v̇𝑥::T; v̇𝑦::T; v̇𝑧::T
-    ω𝑥::T; ω𝑦::T; ω𝑧::T
-end
-
-function getComponents(in::ImuInput)
-    return (in[1:3], in[4:6])
-end
-
-###############################################################################
-#
-###############################################################################
-mutable struct ViconMeasurement{T} <: Measurement{7, T}
-    p𝑥::T; p𝑦::T; p𝑧::T
-    q𝑤::T; q𝑥::T; q𝑦::T; q𝑧::T
-end
-
-function getComponents(meas::ViconMeasurement)
-    return (meas[1:3], UnitQuaternion(meas[4:7]..., false))
-end
-
-###############################################################################
-#
-###############################################################################
-mutable struct ViconErrorMeasurement{T} <: ErrorMeasurement{6, T}
-    𝕕p𝑥::T; 𝕕p𝑦::T; 𝕕p𝑧::T
-    𝕕q𝑥::T; 𝕕q𝑦::T; 𝕕q𝑧::T
-end
-
-function getComponents(err::ViconErrorMeasurement)
-    return (err[1:3], RotationError(SA[err[4:6]...], CayleyMap()))
-end
-
-
-# %%
-function error_state_jacobian(state::ImuState)
+function dynamics(state::ImuState, input::ImuInput)
     p, q, v, α, β = getComponents(state)
+    v̇ᵢ, ωᵢ = getComponents(input)
 
-    M = blockdiag(sparse(I(3)), sparse(∇differential(UnitQuaternion(q))),
-                  sparse(I(9)))
+    # Body velocity writen in inertia cooridantes
+    ṗ = q * v
+    # Compute the rotational kinematics
+    q̇ = kinematics(q, ωᵢ - β)
+    # Translational acceleration
+    v̇ = v̇ᵢ - α
 
-    n, m = length(ImuState), length(ImuErrorState)
-    return SMatrix{n, m}(Matrix(M))
+    # Rate of change in biases is 0
+    α̇ = zeros(3)
+    β̇ = zeros(3)
+
+    return ImuState([ṗ; q̇; v̇; α̇; β̇])
 end
 
+function EKF.process(x::ImuState, u::ImuInput, dt::Float64)::ImuState
+    k1 = dynamics(x, u)
+    k2 = dynamics(x + 0.5 * dt * k1, u)
+    k3 = dynamics(x + 0.5 * dt * k2, u)
+    k4 = dynamics(x + dt * k3, u)
+    xnext = x + (dt/6.0) * (k1 + 2*k2 + 2*k3 + k4)
 
-function error_measurement_jacobian(measurement::ViconMeasurement)
+    return ImuState(xnext)
+end
+
+function EKF.error_process_jacobian(state::ImuState, input::ImuInput, dt::Float64)
+    p, q, v, α, β = getComponents(state)
+    M = Matrix(blockdiag(sparse(I(3)), sparse(∇differential(UnitQuaternion(q))), sparse(I(9))))
+    A = jacobian(st->process(ImuState(st), input, dt), SVector(state))
+    # ∂(dxₖ)/∂xₖ * ∂f(xₖ,uₖ)/∂(xₖ₋₁) * ∂(xₖ₋₁)/∂(dxₖ₋₁)
+    return M' * A * M
+end
+
+function EKF.measure(state::ImuState)::ViconMeasurement
+    p, q, v, α, β = getComponents(state)
+    return ViconMeasurement(p..., params(q)...)
+end
+
+function EKF.error_measure_jacobian(state::ImuState, measurement::ViconMeasurement)
     p, q = getComponents(measurement)
-
     M = blockdiag(sparse(I(3)), sparse(∇differential(UnitQuaternion(q))))
-
-    n, m = length(ViconMeasurement), length(ViconErrorMeasurement)
-    return SMatrix{n, m}(Matrix(M))
-end
-
-
-# Add an error state to another state to create a new state
-function ⊕ₛ(x::ImuState, dx::ImuErrorState)::ImuState
-    p, q, v, α, β = getComponents(x)
-    𝕕p, 𝕕q, 𝕕v, 𝕕α, 𝕕β = getComponents(dx)
-
-    pos = p + 𝕕p
-    ori = add_error(q, 𝕕q)
-    vel = v + 𝕕v
-    acc_bias = α + 𝕕α
-    ori_bias = β + 𝕕β
-
-    x = ImuState(pos..., params(ori)..., vel..., acc_bias..., ori_bias...)
-    return x
-end
-
-# %%
-# Compute the error state between two states
-function ⊖ₘ(m2::ViconMeasurement, m1::ViconMeasurement)::ViconErrorMeasurement
-    p₁, q₁ = getComponents(m1)
-    p₂, q₂ = getComponents(m2)
-
-    pos_er = p₂ - p₁
-    ori_er = rotation_error(q₂, q₁, CayleyMap())
-
-    dx = ViconErrorMeasurement(pos_er..., ori_er...)
-    return dx
+    A = jacobian(st->measure(ImuState(st)), state)
+    # ∂(dyₖ)/∂(yₖ) * ∂(yₖ)/∂(yₖ) * ∂(yₖ)/∂(dyₖ)
+    return M' * A * M
 end

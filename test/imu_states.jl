@@ -1,9 +1,10 @@
+using EKF
 using StaticArrays
 using LinearAlgebra: I
 using SparseArrays
 using Rotations: UnitQuaternion, RotationError, CayleyMap, add_error
 using Rotations: rotation_error, params, ∇differential
-using EKF
+
 
 ###############################################################################
 #
@@ -73,29 +74,6 @@ function getComponents(err::ViconErrorMeasurement)
     return (err[1:3], RotationError(SA[err[4:6]...], CayleyMap()))
 end
 
-
-# %%
-function error_state_jacobian(state::ImuState)
-    p, q, v, α, β = getComponents(state)
-
-    M = blockdiag(sparse(I(3)), sparse(∇differential(UnitQuaternion(q))),
-                  sparse(I(9)))
-
-    n, m = length(ImuState), length(ImuErrorState)
-    return SMatrix{n, m}(Matrix(M))
-end
-
-
-function error_measurement_jacobian(measurement::ViconMeasurement)
-    p, q = getComponents(measurement)
-
-    M = blockdiag(sparse(I(3)), sparse(∇differential(UnitQuaternion(q))))
-
-    n, m = length(ViconMeasurement), length(ViconErrorMeasurement)
-    return SMatrix{n, m}(Matrix(M))
-end
-
-
 # Add an error state to another state to create a new state
 function ⊕ₛ(x::ImuState, dx::ImuErrorState)::ImuState
     p, q, v, α, β = getComponents(x)
@@ -111,7 +89,6 @@ function ⊕ₛ(x::ImuState, dx::ImuErrorState)::ImuState
     return x
 end
 
-# %%
 # Compute the error state between two states
 function ⊖ₘ(m2::ViconMeasurement, m1::ViconMeasurement)::ViconErrorMeasurement
     p₁, q₁ = getComponents(m1)
