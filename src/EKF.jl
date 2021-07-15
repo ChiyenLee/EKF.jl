@@ -4,15 +4,11 @@ module EKF
     using LinearAlgebra: inv, I, issymmetric, isposdef
     using ForwardDiff: jacobian
     using Rotations 
-    using Rotations: rotation_error, CayleyMap, RotationError, add_error
+    using Rotations: rotation_error, CayleyMap, RotationError, add_error, ∇differential
 
     export ErrorStateFilter, State, ErrorState, Measurement, ErrorMeasurement
     export Input, estimateState!
     export error_state_jacobian, error_measurement_jacobian, getComponents
-
-    using StaticArrays
-    using LinearAlgebra: inv, I, issymmetric, isposdef
-    using ForwardDiff: jacobian
 
     include("abstract_states.jl") 
     include("states/trunkstate.jl")   
@@ -110,7 +106,7 @@ module EKF
         # Innovation
         zₖ₊₁ = ekf.measure(xₖ₊₁ₗₖ) ⊖ₘ yₖ
         Jₖ₊₁ = ekf.error_state_jacobian(xₖ₊₁ₗₖ)          # ∂(xₖₗₖ₋₁)/∂(dxₖₗₖ₋₁)
-        Gₖ₊₁ = ekf.error_measurement_jacobian(yₖ)       # ∂(dyₖ)/∂yₖ
+        Gₖ₊₁ = ekf.error_measurement_jacobian(yₖ, xₖ₊₁ₗₖ)       # ∂(dyₖ)/∂yₖ
         # Cₖ₊₁ = ∂(dz)/∂z * ∂z/∂x * ∂x/∂(dx) |_{xₖₗₖ₋₁, zₖ}
         Cₖ₊₁ = (Gₖ₊₁)' * ekf.measure_jacobian(xₖ₊₁ₗₖ) * Jₖ₊₁
         Sₖ₊₁ = Cₖ₊₁ * Pₖ₊₁ₗₖ * (Cₖ₊₁)' + V
