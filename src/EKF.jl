@@ -83,7 +83,7 @@ module EKF
         V = ekf.measure_cov
 
         # Innovation
-        zₖ₊₁ = measurement_error(measure(xₖ₊₁ₗₖ), yₖ)
+        zₖ₊₁ = measurement_error(yₖ,measure(xₖ₊₁ₗₖ))
         Cₖ₊₁ = error_measure_jacobian(xₖ₊₁ₗₖ, yₖ)
         Sₖ₊₁ = Cₖ₊₁ * Pₖ₊₁ₗₖ * (Cₖ₊₁)' + V
 
