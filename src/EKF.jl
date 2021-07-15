@@ -1,7 +1,8 @@
 module EKF
     export State, ErrorState, Input, Measurement, ErrorMeasurement
     export TrunkState, TrunkError, ImuInput, Vicon, ViconError
-    export ErrorStateFilter, estimateState!, prediction
+    export ErrorStateFilter, estimateState!, prediction, innovation, update!
+    export measure, process 
 
     using StaticArrays
     using LinearAlgebra: inv, I, issymmetric, isposdef

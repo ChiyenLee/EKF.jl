@@ -39,7 +39,7 @@ end
 function EKF.error_process_jacobian(state::ImuState, input::ImuInput, dt::Float64)
     p, q, v, α, β = getComponents(state)
     M = Matrix(blockdiag(sparse(I(3)), sparse(∇differential(UnitQuaternion(q))), sparse(I(9))))
-    A = jacobian(st->process(ImuState(st), input, dt), SVector(state))
+    A = jacobian(st->EKF.process(ImuState(st), input, dt), SVector(state))
     # ∂(dxₖ)/∂xₖ * ∂f(xₖ,uₖ)/∂(xₖ₋₁) * ∂(xₖ₋₁)/∂(dxₖ₋₁)
     return M' * A * M
 end
