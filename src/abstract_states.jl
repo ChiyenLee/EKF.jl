@@ -1,5 +1,3 @@
-using LinearAlgebra: I
-using StaticArrays: FieldVector
 
 ###############################################################################
 #                        Abstract Filter Types
