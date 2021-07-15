@@ -37,11 +37,11 @@ end
 #                 State/Measurement & Composition/Difference
 ###############################################################################
 # Add an error state to another state to create a new state
-function ⊕ₛ(x::State, dx::ErrorState)
+function state_composition(x::State, dx::ErrorState)
     return State(x + dx)
 end
 
 # Compute the error measurement between two measurement
-function ⊖ₘ(m2::Measurement, m1::Measurement)
+function measurement_error(m2::Measurement, m1::Measurement)
     return m2 - m1
 end
