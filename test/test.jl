@@ -31,10 +31,17 @@ for imu_row in eachrow(imu_df[2:end, :])
     input = GyroInput(imu_row[[:gyr_x, :gyr_y, :gyr_z]]...)
     measurement = QuatMeasurement(vicon_row[[:quat_w, :quat_x, :quat_y, :quat_z]]...)
 
+<<<<<<< HEAD
     
     println(time)
 end
 
+=======
+# println(prediction(ekf, est_state, est_cov, input; dt=0.1))
+
+
+estimateState!(ekf, input, measurement, 0.1);
+>>>>>>> refs/remotes/origin/main
 
 
 # println(prediction(ekf, est_state, est_cov, input; dt=0.1))
