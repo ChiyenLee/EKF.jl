@@ -1,11 +1,10 @@
 using Pkg 
 using StaticArrays
-using Revise
 using EKF
 using LinearAlgebra
 
-include("imu_states.jl")
-include("imu_dynamics.jl")
+# include("imu_grav_comp/imu_states.jl")
+include("imu_grav_comp/imu_dynamics_discrete.jl")
 
 state = ImuState{Float64}(zeros(16)); state.q𝑤 = 1
 state_err = ImuErrorState{Float64}(zeros(15)); 
@@ -17,7 +16,7 @@ P = Matrix{Float64}(1.0I(length(state_err))) * 1e-2
 W = Matrix{Float64}(1.0I(length(state_err))) * 1e-2
 R = Matrix{Float64}(1.0I(length(vicon_err))) * 1e-2
 
-ekf = ErrorStateFilter{ImuState, ErrorState, ImuInput,
+ekf = ErrorStateFilter{ImuState, ImuErrorState, ImuInput,
           ViconMeasurement, ViconErrorMeasurement}(state, P, W, R)
 
 input.v̇𝑥 = 10
