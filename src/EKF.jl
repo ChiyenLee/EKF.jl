@@ -5,13 +5,14 @@ module EKF
     using ForwardDiff: jacobian
     using Rotations 
     using Rotations: rotation_error, CayleyMap, RotationError, add_error, ∇differential
-
-    export ErrorStateFilter, State, ErrorState, Measurement, ErrorMeasurement
-    export Input, estimateState!
-    export error_state_jacobian, error_measurement_jacobian, getComponents
+    using SparseArrays
+    using LinearAlgebra
+    export getComponents
+    export TrunkState, TrunkError, ImuInput, Vicon, ViconError
+    
 
     include("abstract_states.jl") 
-    include("states/trunkstate.jl")   
+    include("states/trunktypes.jl")   
 
 
     # struct ErrorStateFilter{S <: State{a} where a, ES <: ErrorState{c} where {c}, In <: Input, 
