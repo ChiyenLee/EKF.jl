@@ -3,7 +3,7 @@ using LinearAlgebra: I
 using SparseArrays
 using Rotations: UnitQuaternion, RotationError, CayleyMap, add_error
 using Rotations: rotation_error, params, ∇differential, kinematics
-
+using ForwardDiff: jacobian
 
 ###############################################################################
 #                               Dynamics

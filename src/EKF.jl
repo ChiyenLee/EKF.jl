@@ -12,8 +12,6 @@ module EKF
     using LinearAlgebra
 
     include("abstract_states.jl") 
-    include("states/trunktypes.jl")   
-
 
     struct ErrorStateFilter{S<:State, ES<:ErrorState, IN<:Input, 
                             M<:Measurement, EM<:ErrorMeasurement} 
@@ -26,29 +24,29 @@ module EKF
         function ErrorStateFilter{S, ES, IN, M, EM}(est_state::S, est_cov::MMatrix, 
                                                     process_cov::MMatrix, measure_cov::MMatrix
                                                     ) where {S, ES, IN, M, EM}
-            try 
-                process(est_state, rand(IN), rand())
-            catch MethodError
-                process(est_state, rand(IN), rand())
-                println("User must define the `process` function: \n`process(state::S, input::IN, dt::Float64)`")
-            end
-            try 
-                measure(est_state)
-            catch MethodError
-                println("User must define the `measure` function: \n`measure(state::S)`")
-            end
-            try 
-                error_process_jacobian(est_state, rand(IN), rand())
-            catch MethodError
-                println("User must define the `error_process_jacobian` function: \n`error_process_jacobian(state::S, input::IN, dt::Float64)`")
-            end
-            try 
-                error_measure_jacobian(est_state)
-            catch MethodError
-                println("User must define the `process` function: \n`error_measure_jacobian(state::S)`")
-            end
-            @assert all(size(process_cov) .= length(ES))
-            @assert all(size(measure_cov) .= length(EM))
+            # try 
+            #     process(est_state, rand(IN), rand())
+            # catch MethodError
+            #     process(est_state, rand(IN), rand())
+            #     println("User must define the `process` function: \n`process(state::S, input::IN, dt::Float64)`")
+            # end
+            # try 
+            #     measure(est_state)
+            # catch MethodError
+            #     println("User must define the `measure` function: \n`measure(state::S)`")
+            # end
+            # try 
+            #     error_process_jacobian(est_state, rand(IN), rand())
+            # catch MethodError
+            #     println("User must define the `error_process_jacobian` function: \n`error_process_jacobian(state::S, input::IN, dt::Float64)`")
+            # end
+            # try 
+            #     error_measure_jacobian(est_state)
+            # catch MethodError
+            #     println("User must define the `process` function: \n`error_measure_jacobian(state::S)`")
+            # end
+            # @assert all(size(process_cov) .= length(ES))
+            # @assert all(size(measure_cov) .= length(EM))
 
             return new{S, ES, IN, M, EM}(est_state, est_cov, process_cov, measure_cov)
         end
