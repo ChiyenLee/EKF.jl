@@ -18,7 +18,8 @@ ekf = ErrorStateFilter{ImuState, ImuErrorState, ImuInput, ViconMeasurement,
 input = rand(ImuInput)
 measurement = rand(ViconMeasurement)
 
-println(prediction(ekf, est_state, est_cov, input; dt=0.1))
+# println(prediction(ekf, est_state, est_cov, input; dt=0.1))
 
-println(estimateState!(ekf, input, measurement, 0.1))
+
+estimateState!(ekf, input, measurement, 0.1);
 
