@@ -1,3 +1,8 @@
+using Rotations
+using ForwardDiff: jacobian
+using Rotations: add_error, RotationError, ∇differential, CayleyMap, rotation_error
+using SparseArrays
+using StaticArrays
 ###############################################################################
 #                        State Definitions 
 ###############################################################################
@@ -72,7 +77,7 @@ function EKF.measure(s::TrunkState)::Vicon
 end
 
 function EKF.error_measure_jacobian(s::TrunkState, v::Vicon)
-	H = zeros(length(Vicon),length(TrunkError))
+	H = zeros(length(ViconError),length(TrunkError))
 	Jₓ = ∇differential(UnitQuaternion([s.qw, s.qx, s.qy, s.qz]))
 	Jy = ∇differential(UnitQuaternion([v.qw, v.qx, v.qy, v.qz]))
 
@@ -85,28 +90,29 @@ end
 #                 State/Measurement & Composition/Difference
 ###############################################################################
 # Add an error state to another state to create a new state
-function EKF.⊕ₛ(s::TrunkState, ds::TrunkError)
+function EKF.state_composition(s::TrunkState, ds::TrunkError)
 	dϕ = [ds.𝕕ϕx, ds.𝕕ϕy, ds.𝕕ϕz]
 	r, v, q, α, β = getComponents(s)
 	dr, dv, dϕ, dα, dβ = getComponents(ds)
 
 	ang_error = RotationError(SVector{3, Float64}(dϕ), CayleyMap())
 	qₖ₊₁ = add_error(UnitQuaternion(q), ang_error)
-	qₖ₊₁ .= [qₖ₊₁.w, qₖ₊₁.x, qₖ₊₁.y, qₖ₊₁.z]
+	qₖ₊₁ = [qₖ₊₁.w, qₖ₊₁.x, qₖ₊₁.y, qₖ₊₁.z]
 
 	r = r + dr 
 	v = v + dv 	
 	α = α + dα
 	β = β + dβ 
 
-    return TrunkState([r; v; q; α; β])
+    return TrunkState([r; v; qₖ₊₁; α; β])
 end
 
 # Compute the error measurement between two measurement
-function EKF.⊖ₘ(m2::Vicon, m1::Vicon)
+function EKF.measurement_error(m2::Vicon, m1::Vicon)
 	r1, q1 = getComponents(m1)
 	r2, q2 = getComponents(m2)
-
+	q1 = UnitQuaternion(q1)
+	q2 = UnitQuaternion(q2)
 	dr = r2 - r1 
 	dϕ = rotation_error(q2, q1, CayleyMap())
 

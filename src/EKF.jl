@@ -103,8 +103,8 @@ module EKF
         xₖ₊₁ₗₖ₊₁ = state_composition(xₖ₊₁ₗₖ, ES(Lₖ₊₁ * zₖ₊₁))
         Pₖ₊₁ₗₖ₊₁ = Pₖ₊₁ₗₖ - Lₖ₊₁ * Cₖ₊₁ * Pₖ₊₁ₗₖ
 
-        ekf.est_state .= xₖ₊₁ₗₖ₊₁
-        ekf.est_cov .= Pₖ₊₁ₗₖ₊₁
+        # ekf.est_state .= xₖ₊₁ₗₖ₊₁
+        # ekf.est_cov .= Pₖ₊₁ₗₖ₊₁
 
         return xₖ₊₁ₗₖ₊₁, Pₖ₊₁ₗₖ₊₁
     end
