@@ -31,24 +31,31 @@ module EKF
             catch MethodError
                 process(est_state, rand(IN), rand())
                 println("User must define the `process` function: \n`process(state::S, input::IN, dt::Float64)`")
+                error()
             end
             try 
                 measure(est_state)
             catch MethodError
                 println("User must define the `measure` function: \n`measure(state::S)`")
+                error()
             end
             try 
                 error_process_jacobian(est_state, rand(IN), rand())
             catch MethodError
+                error_process_jacobian(est_state, rand(IN), rand())
+
                 println("User must define the `error_process_jacobian` function: \n`error_process_jacobian(state::S, input::IN, dt::Float64)`")
+                error()
             end
             try 
-                error_measure_jacobian(est_state)
+                error_measure_jacobian(est_state, rand(M))
             catch MethodError
-                println("User must define the `process` function: \n`error_measure_jacobian(state::S)`")
+                error_measure_jacobian(est_state, rand(M))
+                println("User must define the `error_measure_jacobian` function: \n`error_measure_jacobian(state::S)`")
+                error()
             end
-            @assert all(size(process_cov) .= length(ES))
-            @assert all(size(measure_cov) .= length(EM))
+            # @assert all(size(process_cov) .= length(ES))
+            # @assert all(size(measure_cov) .= length(EM))
 
             return new{S, ES, IN, M, EM}(est_state, est_cov, process_cov, measure_cov)
         end

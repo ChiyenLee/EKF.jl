@@ -122,7 +122,7 @@ function measure(s::TrunkState)::Vicon
 	return Vicon([s.x, s.y, s.z, s.qw, s.qx, s.qy, s.qz])
 end
 
-function error_measurement_jacobian(v::Vicon, s::TrunkState)
+function error_measure_jacobian(v::Vicon, s::TrunkState)
 	H = zeros(length(Vicon),length(TrunkError))
 	Jₓ = ∇differential(UnitQuaternion([s.qw, s.qx, s.qy, s.qz]))
 	Jy = ∇differential(UnitQuaternion([v.qw, v.qx, v.qy, v.qz]))

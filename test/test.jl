@@ -1,10 +1,10 @@
+using EKF
 using StaticArrays: length
 using LinearAlgebra: I 
 
 include("imu_states.jl")
 include("imu_dynamics.jl")
 
-using EKF
 
 est_state = rand(ImuState)
 est_cov = MMatrix{length(ImuErrorState), length(ImuErrorState)}(.3 * I(length(ImuErrorState)))
@@ -18,5 +18,5 @@ ekf = ErrorStateFilter{ImuState, ImuErrorState, ImuInput, ViconMeasurement,
 input = rand(ImuInput)
 measurement = rand(ViconMeasurement)
 
-println(measure(ekf.est_state) ⊖ₘ measurement)
+println(EKF.measure(ekf.est_state) ⊖ₘ measurement)
 println(prediction(ekf, est_state, est_cov, input; dt=0.1))
