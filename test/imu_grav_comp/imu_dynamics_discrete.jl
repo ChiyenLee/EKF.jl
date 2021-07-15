@@ -1,14 +1,6 @@
 ###############################################################################
 #                        State Definitions 
 ###############################################################################
-# abstract type State{N, T} <: FieldVector{N, T} end 
-# abstract type ErrorState{Nₑ, T} <: FieldVector{Nₑ, T} end 
-
-# abstract type Input{M, T} <: FieldVector{M, T} end  
-
-# abstract type Measurement{S, T} <: FieldVector{S, T} end  
-# abstract type ErrorMeasurement{Sₑ, T} <: FieldVector{Sₑ, T} end
-
 mutable struct TrunkState{T} <: State{16,T}
 	x::T; y::T; z::T 
 	vx::T; vy::T; vz::T 
@@ -68,7 +60,7 @@ function EKF.error_process_jacobian(s::TrunkState, u::ImuInput, h::Float64)
 	Jₖ = blockdiag(sparse(I(6)), sparse(∇differential(qₖ)), sparse(I(6))  )
 	Jₖ₊₁ₗₖ = blockdiag(sparse(I(6)), sparse(∇differential(qₖ₊₁ₗₖ)), sparse(I(6))  )
 
-    F = jacobian(st->EKF.process(TrunkState(st), u, h), SVector(s))
+    F = jacobian(st->process(TrunkState(st), u, h), SVector(s))
 	return Jₖ₊₁ₗₖ' * F * Jₖ
 end
 

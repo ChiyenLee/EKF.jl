@@ -2,8 +2,8 @@ using EKF
 using StaticArrays: length
 using LinearAlgebra: I 
 
-include("imu_states.jl")
-include("imu_dynamics.jl")
+include("imu/imu_states.jl")
+include("imu/imu_dynamics.jl")
 
 
 est_state = rand(ImuState)

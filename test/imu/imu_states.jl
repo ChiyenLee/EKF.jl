@@ -75,7 +75,7 @@ function getComponents(err::ViconErrorMeasurement)
 end
 
 # Add an error state to another state to create a new state
-function ⊕ₛ(x::ImuState, dx::ImuErrorState)::ImuState
+function EKF.(⊕ₛ)(x::ImuState, dx::ImuErrorState)::ImuState
     p, q, v, α, β = getComponents(x)
     𝕕p, 𝕕q, 𝕕v, 𝕕α, 𝕕β = getComponents(dx)
 
@@ -89,8 +89,8 @@ function ⊕ₛ(x::ImuState, dx::ImuErrorState)::ImuState
     return x
 end
 
-# Compute the error state between two states
-function ⊖ₘ(m2::ViconMeasurement, m1::ViconMeasurement)::ViconErrorMeasurement
+# # Compute the error state between two states
+function EKF.(⊖ₘ)(m2::ViconMeasurement, m1::ViconMeasurement)::ViconErrorMeasurement
     p₁, q₁ = getComponents(m1)
     p₂, q₂ = getComponents(m2)
 

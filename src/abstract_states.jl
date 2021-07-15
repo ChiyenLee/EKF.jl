@@ -13,11 +13,11 @@ abstract type ErrorMeasurement{Sₑ, T} <: FieldVector{Sₑ, T} end
 ###############################################################################
 #                      Process / Process Jacobian
 ###############################################################################
-function process(state::State)
+function process(state::State, input::Input, dt::Float64)::State
     return state
 end
 
-function error_process_jacobian(measurement::Measurement)
+function error_process_jacobian(state::State, input::Input, dt::Float64)
     return I
 end
 

@@ -2,14 +2,10 @@ module EKF
     export State, ErrorState, Input, Measurement, ErrorMeasurement
     export TrunkState, TrunkError, ImuInput, Vicon, ViconError
     export ErrorStateFilter, estimateState!, prediction, innovation, update!
-    export measure, process 
+    export measure, process, error_measure_jacobian, error_process_jacobian, ⊖ₘ, ⊕ₛ
 
     using StaticArrays
     using LinearAlgebra: inv, I, issymmetric, isposdef
-    using ForwardDiff: jacobian
-    using Rotations 
-    using Rotations: rotation_error, CayleyMap, RotationError, add_error, ∇differential
-    using SparseArrays
     using LinearAlgebra
 
     include("abstract_states.jl") 
@@ -28,27 +24,35 @@ module EKF
             try 
                 process(est_state, rand(IN), rand())
             catch MethodError
-                println("User must define the `process` function: \n`process(state::S, input::IN, dt::Float64)`")
-                error()
+                error("User must define the `process` function: `process(state::S, input::IN, dt::Float64)`")
             end
             try 
                 measure(est_state)
             catch MethodError
-                println("User must define the `measure` function: \n`measure(state::S)`")
-                error()
+                error("User must define the `measure` function: `measure(state::S)`")
             end
             try 
                 error_process_jacobian(est_state, rand(IN), rand())
             catch MethodError
-                println("User must define the `error_process_jacobian` function: \n`error_process_jacobian(state::S, input::IN, dt::Float64)`")
-                error()
+                error("User must define the `error_process_jacobian` function: `error_process_jacobian(state::S, input::IN, dt::Float64)`")
             end
             try 
                 error_measure_jacobian(est_state, rand(M))
             catch MethodError
-                println("User must define the `error_measure_jacobian` function: \n`error_measure_jacobian(state::S)`")
-                error()
+                error("User must define the `error_measure_jacobian` function: `error_measure_jacobian(state::S)`")
             end
+            # try 
+            #     temp = ⊕ₛ(rand(S), rand(ES))
+            #     @assert temp isa S
+            # catch MethodError
+            #     error("User must define the `⊕ₛ` function: `⊕ₛ(state::S, err_state::ES)::S`")
+            # end
+            # try 
+            #     temp = ⊖ₘ(rand(M), rand(M))
+            #     @assert temp isa EM
+            # catch MethodError
+            #     error("User must define the `⊖ₘ` function: `⊖ₘ(measurement1::M, measurement2::M)::EM`")
+            # end
             
             return new{S, ES, IN, M, EM}(est_state, est_cov, process_cov, measure_cov)
         end
