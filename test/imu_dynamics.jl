@@ -11,19 +11,15 @@ using ForwardDiff: jacobian
 function dynamics(state::ImuState, input::ImuInput)
     p, q, v, α, β = getComponents(state)
     v̇ᵢ, ωᵢ = getComponents(input)
-
     # Body velocity writen in inertia cooridantes
     ṗ = q * v
     # Compute the rotational kinematics
     q̇ = kinematics(q, ωᵢ - β)
     # Translational acceleration
     v̇ = v̇ᵢ - α
-
     # Rate of change in biases is 0
-    α̇ = zeros(3)
-    β̇ = zeros(3)
-
-    return ImuState([ṗ; q̇; v̇; α̇; β̇])
+    α̇ = zeros(3); β̇ = zeros(3)
+    return [ṗ; q̇; v̇; α̇; β̇]
 end
 
 function EKF.process(x::ImuState, u::ImuInput, dt::Float64)::ImuState
@@ -37,11 +33,15 @@ function EKF.process(x::ImuState, u::ImuInput, dt::Float64)::ImuState
 end
 
 function EKF.error_process_jacobian(state::ImuState, input::ImuInput, dt::Float64)
-    p, q, v, α, β = getComponents(state)
-    M = Matrix(blockdiag(sparse(I(3)), sparse(∇differential(UnitQuaternion(q))), sparse(I(9))))
     A = jacobian(st->EKF.process(ImuState(st), input, dt), SVector(state))
+
+    p, q, v, α, β = getComponents(state)
+    Jₖ = Matrix(blockdiag(sparse(I(3)), sparse(∇differential(UnitQuaternion(q))), sparse(I(9))))
+    
+    p, q, v, α, β = getComponents(EKF.process(state, input, dt))
+    Jₖ₊₁ = Matrix(blockdiag(sparse(I(3)), sparse(∇differential(UnitQuaternion(q))), sparse(I(9))))
     # ∂(dxₖ)/∂xₖ * ∂f(xₖ,uₖ)/∂(xₖ₋₁) * ∂(xₖ₋₁)/∂(dxₖ₋₁)
-    return M' * A * M
+    return Jₖ₊₁' * A * Jₖ
 end
 
 function EKF.measure(state::ImuState)::ViconMeasurement
@@ -50,9 +50,12 @@ function EKF.measure(state::ImuState)::ViconMeasurement
 end
 
 function EKF.error_measure_jacobian(state::ImuState, measurement::ViconMeasurement)
+    A = jacobian(st->EKF.measure(ImuState(st)), state)
+
+    p, q, v, α, β = getComponents(state)
+    Jₖ₊₁ = Matrix(blockdiag(sparse(I(3)), sparse(∇differential(UnitQuaternion(q))), sparse(I(9))))
     p, q = getComponents(measurement)
-    M = blockdiag(sparse(I(3)), sparse(∇differential(UnitQuaternion(q))))
-    A = jacobian(st->measure(ImuState(st)), state)
+    Gₖ₊₁ = blockdiag(sparse(I(3)), sparse(∇differential(UnitQuaternion(q))))
     # ∂(dyₖ)/∂(yₖ) * ∂(yₖ)/∂(yₖ) * ∂(yₖ)/∂(dyₖ)
-    return M' * A * M
+    return Gₖ₊₁' * A * Jₖ₊₁
 end
