@@ -10,74 +10,53 @@ module EKF
     export Input, estimateState!
     export error_state_jacobian, error_measurement_jacobian, getComponents
 
-    using StaticArrays
-    using LinearAlgebra: inv, I, issymmetric, isposdef
-    using ForwardDiff: jacobian
-
     include("abstract_states.jl") 
-    include("states/trunkstate.jl")   
+    # include("states/trunkstate.jl")   
 
 
     # struct ErrorStateFilter{S <: State{a} where a, ES <: ErrorState{c} where {c}, In <: Input, 
                             # M <: Measurement, EM <: ErrorMeasurement}
     struct ErrorStateFilter{S<:State, ES<:ErrorState, 
-                            In<:Input, 
-                            M<:Measurement, EM<:ErrorMeasurement}
+                            IN<:Input, 
+                            M<:Measurement, EM<:ErrorMeasurement} 
         est_state::S
         est_cov::MMatrix
 
         process_cov::MMatrix  # Dynamics Noise Covariance
         measure_cov::MMatrix  # Measurement Noise Covariance
 
-        process::Function               # Dynamics Function
-        measure::Function               # Measurement Function
+        function ErrorStateFilter{S, ES, IN, M, EM}(est_state::S, est_cov::MMatrix, 
+                                                    process_cov::MMatrix, measure_cov::MMatrix
+                                                    ) where {S, ES, IN, M, EM}
+            try 
+                process(est_state, rand(IN), rand())
+            catch MethodError
+                println("User must define the `process` function: \n`process(state::S, input::IN, dt::Float64)`")
+            end
+            try 
+                measure(est_state)
+            catch MethodError
+                println("User must define the `measure` function: \n`measure(state::S)`")
+            end
+            try 
+                error_process_jacobian(est_state, rand(IN), rand())
+            catch MethodError
+                println("User must define the `error_process_jacobian` function: \n`error_process_jacobian(state::S, input::IN, dt::Float64)`")
+            end
+            try 
+                error_measure_jacobian(est_state)
+            catch MethodError
+                println("User must define the `process` function: \n`error_measure_jacobian(state::S)`")
+            end
 
-        process_jacobian::Function      # Dynamics Function
-        measure_jacobian::Function      # Measurement Function
-
-        error_state_jacobian::Function
-        error_measurement_jacobian::Function
-
-        # Full Constructor, jacobians provided
-        function ErrorStateFilter(S::UnionAll, ES::UnionAll, 
-                                  In::UnionAll, 
-                                  M::UnionAll, EM::UnionAll, 
-                                  process_cov::MMatrix, measure_cov::MMatrix,
-                                  process::Function, measure::Function,
-                                  error_process_jacobian::Function,
-                                  error_measure_jacobian::Function,
-                                  error_state_jacobian::Function,
-                                  error_measurement_jacobian::Function)
-
-            # Check arguments
-            (issymmetric(process_cov) ||
-                throw(ArgumentError("Dynamics noise covariance Matrix must be symmetric.")))
-            (issymmetric(measure_cov) ||
-                throw(ArgumentError("Measurement noise covariance Matrix must be symmetric.")))
-
-            (isposdef(process_cov) ||
-                throw(ArgumentError("Dynamics noise covariance Matrix must be positive semi-definite.")))
-            (isposdef(measure_cov) ||
-                throw(ArgumentError("Measurement noise covariance Matrix must be positive semi-definite.")))
-
-            # Initalize state estimate and covariance
-            est_state = zeros(S)
-            len_err_state = length(ES)
-            est_cov = MMatrix{len_err_state, len_err_state, Float64}(I(length(ES)))
-
-            return new{S, ES, In, M, EM}(est_state, est_cov,
-                                         process_cov, measure_cov,
-                                         process, measure,
-                                         process_jacobian, measure_jacobian,
-                                         error_state_jacobian, error_measurement_jacobian)
+            return new{S, ES, In, M, EM}(est_state, est_cov, process_cov, measure_cov)
         end
     end
 
 
     function prediction(ekf::ErrorStateFilter{S, ES, In, M, EM}, 
                         xₖₗₖ::S, Pₖₗₖ::MMatrix, uₖ::In; 
-                        dt=0.1) where {S<:State, ES<:ErrorState, 
-                                       In<:Input, 
+                        dt=0.1) where {S<:State, ES<:ErrorState, In<:Input, 
                                        M<:Measurement, EM<:ErrorMeasurement}
         # Relabeling
         # xₖₗₖ = ekf.est_state
@@ -98,8 +77,7 @@ module EKF
 
     function innovation(ekf::ErrorStateFilter{S, ES, In, M, EM}, 
                         xₖ₊₁ₗₖ::S, Pₖ₊₁ₗₖ::MMatrix, 
-                        yₖ::M) where {S<:State, ES<:ErrorState, 
-                                     In<:Input, 
+                        yₖ::M) where {S<:State, ES<:ErrorState, In<:Input, 
                                      M<:Measurement, EM<:ErrorMeasurement}
         # Relabeling
         # xₖ₊₁ₗₖ = state
