@@ -68,7 +68,7 @@ function EKF.error_process_jacobian(s::TrunkState, u::ImuInput, h::Float64)
 	Jₖ = blockdiag(sparse(I(6)), sparse(∇differential(qₖ)), sparse(I(6))  )
 	Jₖ₊₁ₗₖ = blockdiag(sparse(I(6)), sparse(∇differential(qₖ₊₁ₗₖ)), sparse(I(6))  )
 
-    F = jacobian(st->EKF.process(TrunkState(st), u, h), SVector(s))
+    F = jacobian(st->EKF.process(TrunkState(st), u, h), MVector(s))
 	return Jₖ₊₁ₗₖ' * F * Jₖ
 end
 

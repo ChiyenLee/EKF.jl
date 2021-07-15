@@ -32,7 +32,7 @@ function EKF.process(x::ImuState, u::ImuInput, dt::Float64)::ImuState
     return ImuState(xnext)
 end
 
-function EKF.error_process_jacobian(state::ImuState, input::ImuInput, dt::Float64)
+function EKF.error_process_jacobian(state::ImuState, input::ImuInput, dt::Float64)::Matrix
     A = jacobian(st->process(ImuState(st), input, dt), SVector(state))
 
     p, q, v, α, β = getComponents(state)
@@ -49,13 +49,14 @@ function EKF.measure(state::ImuState)::ViconMeasurement
     return ViconMeasurement(p..., params(q)...)
 end
 
-function EKF.error_measure_jacobian(state::ImuState, measurement::ViconMeasurement)
+function EKF.error_measure_jacobian(state::ImuState, measurement::ViconMeasurement)::Matrix
     A = jacobian(st->measure(ImuState(st)), state)
     
     p, q, v, α, β = getComponents(state)
     Jₖ₊₁ = Matrix(blockdiag(sparse(I(3)), sparse(∇differential(UnitQuaternion(q))), sparse(I(9))))
     p, q = getComponents(measurement)
     Gₖ₊₁ = blockdiag(sparse(I(3)), sparse(∇differential(UnitQuaternion(q))))
+    
     # ∂(dyₖ)/∂(yₖ) * ∂(yₖ)/∂(yₖ) * ∂(yₖ)/∂(dyₖ)
     return Gₖ₊₁' * A * Jₖ₊₁
 end

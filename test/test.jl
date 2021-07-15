@@ -7,10 +7,10 @@ include("imu_dynamics.jl")
 
 
 est_state = rand(ImuState)
-est_cov = MMatrix{length(ImuErrorState), length(ImuErrorState)}(.3 * I(length(ImuErrorState)))
+est_cov = Matrix{length(ImuErrorState), length(ImuErrorState)}(.3 * I(length(ImuErrorState)))
 
-process_cov = MMatrix{length(ImuErrorState), length(ImuErrorState)}(.3 * I(length(ImuErrorState)))
-measure_cov = MMatrix{length(ViconErrorMeasurement), length(ViconErrorMeasurement)}(.3 * I(length(ViconErrorMeasurement)))
+process_cov = Matrix{length(ImuErrorState), length(ImuErrorState)}(.3 * I(length(ImuErrorState)))
+measure_cov = Matrix{length(ViconErrorMeasurement), length(ViconErrorMeasurement)}(.3 * I(length(ViconErrorMeasurement)))
 
 ekf = ErrorStateFilter{ImuState, ImuErrorState, ImuInput, ViconMeasurement, 
                        ViconErrorMeasurement}(est_state, est_cov, process_cov, measure_cov)
