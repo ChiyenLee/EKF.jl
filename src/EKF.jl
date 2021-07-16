@@ -1,8 +1,8 @@
 module EKF
     export State, ErrorState, Input, Measurement, ErrorMeasurement
-    export TrunkState, TrunkError, ImuInput, Vicon, ViconError
     export ErrorStateFilter, estimateState!, prediction, innovation, update!
     export measure, process, error_measure_jacobian, error_process_jacobian, ⊖ₘ, ⊕ₛ
+    export prediction!, update!
 
     using StaticArrays
     using LinearAlgebra: inv, I, issymmetric, isposdef
@@ -62,6 +62,18 @@ module EKF
         return xₖ₊₁ₗₖ, Pₖ₊₁ₗₖ
     end
 
+    function prediction!(ekf::ErrorStateFilter{S, ES, IN, M, EM}, uₖ::IN;dt=0.1 
+                        ) where {S<:State, ES<:ErrorState, IN<:Input, 
+                                 M<:Measurement, EM<:ErrorMeasurement}
+        W = ekf.process_cov 
+        Pₖₗₖ = ekf.est_cov 
+        xₖₗₖ = ekf.est_state
+
+        xₖ₊₁ₗₖ, Pₖ₊₁ₗₖ = prediction(ekf, xₖₗₖ,  Pₖₗₖ,  uₖ, dt=dt)
+        ekf.est_state .= xₖ₊₁ₗₖ
+        ekf.est_cov .= Pₖ₊₁ₗₖ
+    end 
+
 
     function innovation(ekf::ErrorStateFilter{S, ES, IN, M, EM}, 
                         xₖ₊₁ₗₖ::S, Pₖ₊₁ₗₖ::Matrix, yₖ::M
@@ -81,8 +93,7 @@ module EKF
         return zₖ₊₁, Cₖ₊₁, Lₖ₊₁
     end
 
-
-    function update!(ekf::ErrorStateFilter{S, ES, IN, M, EM}, 
+    function update(ekf::ErrorStateFilter{S, ES, IN, M, EM}, 
                      xₖ₊₁ₗₖ::S, Pₖ₊₁ₗₖ::Matrix, zₖ₊₁::EM, 
                      Cₖ₊₁::Matrix, Lₖ₊₁::Matrix
                      ) where {S<:State, ES<:ErrorState, IN<:Input, 
@@ -91,10 +102,23 @@ module EKF
         xₖ₊₁ₗₖ₊₁ = state_composition(xₖ₊₁ₗₖ, ES(Lₖ₊₁ * zₖ₊₁))
         Pₖ₊₁ₗₖ₊₁ = Pₖ₊₁ₗₖ - Lₖ₊₁ * Cₖ₊₁ * Pₖ₊₁ₗₖ
 
-        # ekf.est_state .= xₖ₊₁ₗₖ₊₁
-        # ekf.est_cov .= Pₖ₊₁ₗₖ₊₁
-
         return xₖ₊₁ₗₖ₊₁, Pₖ₊₁ₗₖ₊₁
+    end
+
+    function update!(ekf::ErrorStateFilter{S, ES, IN, M, EM}, 
+                    yₖ) where {S<:State, ES<:ErrorState, IN<:Input, 
+                              M<:Measurement, EM<:ErrorMeasurement}
+        Pₖ₊₁ₗₖ = ekf.est_cov 
+        xₖ₊₁ₗₖ = ekf.est_state
+        
+        zₖ₊₁, Cₖ₊₁, Lₖ₊₁= innovation(ekf, xₖ₊₁ₗₖ, Pₖ₊₁ₗₖ, yₖ)
+
+        # Update
+        xₖ₊₁ₗₖ₊₁ = state_composition(xₖ₊₁ₗₖ, ES(Lₖ₊₁ * zₖ₊₁))
+        Pₖ₊₁ₗₖ₊₁ = Pₖ₊₁ₗₖ - Lₖ₊₁ * Cₖ₊₁ * Pₖ₊₁ₗₖ
+
+        ekf.est_state .= xₖ₊₁ₗₖ₊₁
+        ekf.est_cov .= Pₖ₊₁ₗₖ₊₁
     end
 
 
