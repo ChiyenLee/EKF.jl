@@ -29,7 +29,7 @@ function measure(state::State)::Measurement
     return state
 end
 
-function error_measure_jacobian(state::State, measurement::Measurement)
+function error_measure_jacobian(state::State)
     return I
 end
 

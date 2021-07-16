@@ -13,6 +13,11 @@ using ForwardDiff: jacobian
 mutable struct GyroState{T} <: State{7, T}
     q𝑤::T; q𝑥::T; q𝑦::T; q𝑧::T
     β𝑥::T; β𝑦::T; β𝑧::T
+
+    # function GyroState(q𝑤::T, q𝑥::T, q𝑦::T, q𝑧::T, β𝑥::T, β𝑦::T, β𝑧::T) where T
+    #     q𝑤, q𝑥, q𝑦, q𝑧 = params(UnitQuaternion(q𝑤, q𝑥, q𝑦, q𝑧))
+    #     return new{T}(q𝑤, q𝑥, q𝑦, q𝑧, β𝑥, β𝑦, β𝑧)
+    # end
 end
 
 function getComponents(state::GyroState)
@@ -47,6 +52,11 @@ end
 ###############################################################################
 mutable struct QuatMeasurement{T} <: Measurement{4, T}
     q𝑤::T; q𝑥::T; q𝑦::T; q𝑧::T
+
+    # function QuatMeasurement(q𝑤::T, q𝑥::T, q𝑦::T, q𝑧::T) where T
+    #     q𝑤, q𝑥, q𝑦, q𝑧 = params(UnitQuaternion(q𝑤, q𝑥, q𝑦, q𝑧))
+    #     return new{T}(q𝑤, q𝑥, q𝑦, q𝑧)
+    # end
 end
 
 function getComponents(meas::QuatMeasurement)
@@ -82,8 +92,6 @@ function EKF.measurement_error(m2::QuatMeasurement, m1::QuatMeasurement)::QuatEr
     q₂ = getComponents(m2)
 
     ori_er = rotation_error(q₂, q₁, CayleyMap())
-    println([ori_er...])
-    println(ori_er)
 
     dx = QuatErrorMeasurement(ori_er...)
     return dx
@@ -107,9 +115,11 @@ function EKF.process(x::GyroState, u::GyroInput, dt::Float64)::GyroState
     k2 = dynamics(x + 0.5 * dt * k1, u)
     k3 = dynamics(x + 0.5 * dt * k2, u)
     k4 = dynamics(x + dt * k3, u)
-    xnext = x + (dt/6.0) * (k1 + 2*k2 + 2*k3 + k4)
+    xnext = GyroState(x + (dt/6.0) * (k1 + 2*k2 + 2*k3 + k4))
 
-    return GyroState(xnext)
+    xnext.q𝑤, xnext.q𝑥, xnext.q𝑦, xnext.q𝑧 = params(UnitQuaternion(xnext.q𝑤, xnext.q𝑥, xnext.q𝑦, xnext.q𝑧))
+
+    return xnext
 end
 
 function EKF.error_process_jacobian(state::GyroState, input::GyroInput, dt::Float64)::Matrix
@@ -117,7 +127,7 @@ function EKF.error_process_jacobian(state::GyroState, input::GyroInput, dt::Floa
 
     qₖ, _ = getComponents(state)
     Jₖ = cat(∇differential(qₖ), I(3), dims=(1,2))
-    qₖ₊₁, _ = getComponents(EKF.process(state, input, dt))
+    qₖ₊₁, _ = getComponents(process(state, input, dt))
     Jₖ₊₁ = cat(∇differential(qₖ₊₁), I(3), dims=(1,2))
 
     # ∂(dxₖ)/∂xₖ * ∂f(xₖ,uₖ)/∂(xₖ₋₁) * ∂(xₖ₋₁)/∂(dxₖ₋₁)
@@ -129,13 +139,14 @@ function EKF.measure(state::GyroState)::QuatMeasurement
     return QuatMeasurement(params(q)...)
 end
 
-function EKF.error_measure_jacobian(state::GyroState, measurement::QuatMeasurement)
+function EKF.error_measure_jacobian(state::GyroState)::Matrix
     A = jacobian(st->measure(GyroState(st)), state)
 
     qₖ₊₁, _ = getComponents(state)
     Jₖ₊₁ = cat(∇differential(qₖ₊₁), I(3), dims=(1,2))
-    q̃ = getComponents(measurement)
-    Gₖ₊₁ = cat(∇differential(q̃), dims=(1,2))
+
+    q̂ = getComponents(measure(state))
+    Gₖ₊₁ = cat(∇differential(q̂), dims=(1,2))
 
     # ∂(dyₖ)/∂(yₖ) * ∂(yₖ)/∂(yₖ) * ∂(yₖ)/∂(dyₖ)
     return Gₖ₊₁' * A * Jₖ₊₁

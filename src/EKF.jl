@@ -37,22 +37,10 @@ module EKF
                 error("User must define the `error_process_jacobian` function: `error_process_jacobian(state::S, input::IN, dt::Float64)`")
             end
             try 
-                error_measure_jacobian(est_state, rand(M))
+                error_measure_jacobian(est_state)
             catch MethodError
                 error("User must define the `error_measure_jacobian` function: `error_measure_jacobian(state::S)`")
             end
-            # try 
-            #     temp = ⊕ₛ(rand(S), rand(ES))
-            #     @assert temp isa S
-            # catch MethodError
-            #     error("User must define the `⊕ₛ` function: `⊕ₛ(state::S, err_state::ES)::S`")
-            # end
-            # try 
-            #     temp = ⊖ₘ(rand(M), rand(M))
-            #     @assert temp isa EM
-            # catch MethodError
-            #     error("User must define the `⊖ₘ` function: `⊖ₘ(measurement1::M, measurement2::M)::EM`")
-            # end
             
             return new{S, ES, IN, M, EM}(est_state, est_cov, process_cov, measure_cov)
         end
@@ -83,8 +71,8 @@ module EKF
         V = ekf.measure_cov
 
         # Innovation
-        zₖ₊₁ = measurement_error(measure(xₖ₊₁ₗₖ), yₖ)
-        Cₖ₊₁ = error_measure_jacobian(xₖ₊₁ₗₖ, yₖ)
+        zₖ₊₁ = measurement_error(yₖ, measure(xₖ₊₁ₗₖ))
+        Cₖ₊₁ = error_measure_jacobian(xₖ₊₁ₗₖ)
         Sₖ₊₁ = Cₖ₊₁ * Pₖ₊₁ₗₖ * (Cₖ₊₁)' + V
 
         # Kalman Gain

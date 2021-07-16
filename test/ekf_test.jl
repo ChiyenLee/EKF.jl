@@ -1,38 +1,28 @@
-using Pkg 
-using StaticArrays
 using EKF
 using LinearAlgebra
 
-<<<<<<< HEAD
-# include("imu_grav_comp/imu_states.jl")
-include("imu_grav_comp/imu_dynamics_discrete.jl")
-=======
-include("imu/imu_states.jl")
-include("imu/imu_dynamics.jl")
->>>>>>> refs/remotes/origin/main
+include("$(@__DIR__)/imu_grav_comp/imu_dynamics_discrete.jl")
 
-# state = ImuState{Float64}(zeros(16)); state.q𝑤 = 1
-# state_err = ImuErrorState{Float64}(zeros(15)); 
-# input = ImuInput{Float64}(zeros(6))
-# vicon = ViconMeasurement{Float64}(zeros(7)); vicon.q𝑤 = 1
-# vicon_err = ViconErrorMeasurement{Float64}(zeros(6))
+# %%
+state = zeros(TrunkState); state.qw = 1.0
+vicon = zeros(Vicon); vicon.qw = 1.0
+input = zeros(ImuInput); input.fx = 10
 
-state = rand(ImuState)
-vicon = rand(ViconMeasurement)
-input = rand(ImuInput)
+P = Matrix(1.0I(length(TrunkError))) * 1e-4; 
+W = Matrix(1.0I(length(TrunkError))) * 1e4;
+R = Matrix(1.0I(length(ViconError))) * 1e-3;
 
-<<<<<<< HEAD
-=======
-P = Matrix(0.3* I(length(ImuErrorState))) 
-W = Matrix(0.3* I(length(ImuErrorState))) 
-R = Matrix(0.3 * I(length(ViconErrorMeasurement))) 
+q_rand = normalize(randn(4))
+vicon = Vicon([0. 0. 0. q_rand...])
 
->>>>>>> refs/remotes/origin/main
-ekf = ErrorStateFilter{ImuState, ImuErrorState, ImuInput,
-          ViconMeasurement, ViconErrorMeasurement}(state, P, W, R)
+ekf = ErrorStateFilter{TrunkState, TrunkError, ImuInput, Vicon, ViconError}(state, P, W, R)
 
-# input.v̇𝑥 = 10
+# %%
 
-# x_next, P_next = prediction(ekf, state, P, input, dt=0.01)
-# innovation(ekf, x_next, P, vicon)
-estimateState!(ekf, input, vicon, 0.01)
+state_prior, P_prior = prediction(ekf, state, P, input, dt=0.01)
+vicon_error, H, L = innovation(ekf, state_prior, P_prior, vicon) # H::measure jacobian, L::Kalman Gain
+state_post, P_post = update!(ekf, state_prior, P, vicon_error, H, L)
+
+r, v, q, α, β = getComponents(state_post)
+println("r: ", r)
+println("q: ", q)
