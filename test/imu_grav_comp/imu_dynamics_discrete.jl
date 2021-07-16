@@ -76,7 +76,7 @@ function EKF.measure(s::TrunkState)::Vicon
 	return Vicon([s.x, s.y, s.z, s.qw, s.qx, s.qy, s.qz])
 end
 
-function EKF.error_measure_jacobian(s::TrunkState, v::Vicon)
+function EKF.error_measure_jacobian(s::TrunkState)
 	H = zeros(length(ViconError),length(TrunkError))
 	Jₓ = ∇differential(UnitQuaternion([s.qw, s.qx, s.qy, s.qz]))
 	# Jy = ∇differential(UnitQuaternion([v.qw, v.qx, v.qy, v.qz]))
