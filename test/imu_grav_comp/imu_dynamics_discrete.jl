@@ -79,9 +79,9 @@ end
 function EKF.error_measure_jacobian(s::TrunkState, v::Vicon)
 	H = zeros(length(ViconError),length(TrunkError))
 	Jₓ = ∇differential(UnitQuaternion([s.qw, s.qx, s.qy, s.qz]))
-	Jy = ∇differential(UnitQuaternion([v.qw, v.qx, v.qy, v.qz]))
+	# Jy = ∇differential(UnitQuaternion([v.qw, v.qx, v.qy, v.qz]))
 
-	H[4:6,4:6] = Jy' * I(4) * Jₓ
+	H[4:6,7:9] = Jₓ' * I(4) * Jₓ
 	H[1:3,1:3] = I(3)
 	return H 
 end 
