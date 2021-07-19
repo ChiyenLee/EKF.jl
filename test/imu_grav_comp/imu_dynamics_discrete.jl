@@ -48,10 +48,17 @@ function EKF.process(s::TrunkState, u::ImuInput, h::Float64)
 	
 	C = UnitQuaternion(q) # from body to world
 
+<<<<<<< HEAD
 	rₖ₊₁ = r + h*v + 0.5*h^2*(C*(f-α)-g) 
 	
 	vₖ₊₁ = v + h*(C*(f - α) - g)
 	qₖ₊₁ = q + 0.5 * ∇differential(C) * (ω - β) * h  #L(q) * ζ((ω-state.βω)*h)
+=======
+	rₖ₊₁ = r + h*v + 0.5*h^2*(C'*(f-α)-g) 
+	# println(C'*(f-α)-g)	
+	vₖ₊₁ = v + h*(C'*(f - α) - g)
+	qₖ₊₁ = q + 0.5 * ∇differential(C) * (ω - β)*h  #L(q) * ζ((ω-state.βω)*h)
+>>>>>>> refs/remotes/origin/main
 	qₖ₊₁ = qₖ₊₁ / norm(qₖ₊₁)
 	return TrunkState([rₖ₊₁;vₖ₊₁;qₖ₊₁;α;β])
 end 
@@ -76,7 +83,7 @@ function EKF.measure(s::TrunkState)::Vicon
 	return Vicon([s.x, s.y, s.z, s.qw, s.qx, s.qy, s.qz])
 end
 
-function EKF.error_measure_jacobian(s::TrunkState, v::Vicon)
+function EKF.error_measure_jacobian(s::TrunkState)
 	H = zeros(length(ViconError),length(TrunkError))
 	Jₓ = ∇differential(UnitQuaternion([s.qw, s.qx, s.qy, s.qz]))
 	# Jy = ∇differential(UnitQuaternion([v.qw, v.qx, v.qy, v.qz]))
