@@ -34,11 +34,13 @@ module EKF
             try 
                 error_process_jacobian(est_state, rand(IN), rand())
             catch MethodError
+                error_process_jacobian(est_state, rand(IN), rand())
                 error("User must define the `error_process_jacobian` function: `error_process_jacobian(state::S, input::IN, dt::Float64)`")
             end
             try 
                 error_measure_jacobian(est_state)
             catch MethodError
+                error_measure_jacobian(est_state)
                 error("User must define the `error_measure_jacobian` function: `error_measure_jacobian(state::S)`")
             end
             
