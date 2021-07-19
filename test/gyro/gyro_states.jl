@@ -13,11 +13,6 @@ using ForwardDiff: jacobian
 mutable struct GyroState{T} <: State{7, T}
     q𝑤::T; q𝑥::T; q𝑦::T; q𝑧::T
     β𝑥::T; β𝑦::T; β𝑧::T
-
-    # function GyroState(q𝑤::T, q𝑥::T, q𝑦::T, q𝑧::T, β𝑥::T, β𝑦::T, β𝑧::T) where T
-    #     q𝑤, q𝑥, q𝑦, q𝑧 = params(UnitQuaternion(q𝑤, q𝑥, q𝑦, q𝑧))
-    #     return new{T}(q𝑤, q𝑥, q𝑦, q𝑧, β𝑥, β𝑦, β𝑧)
-    # end
 end
 
 function getComponents(state::GyroState)
@@ -52,11 +47,6 @@ end
 ###############################################################################
 mutable struct QuatMeasurement{T} <: Measurement{4, T}
     q𝑤::T; q𝑥::T; q𝑦::T; q𝑧::T
-
-    # function QuatMeasurement(q𝑤::T, q𝑥::T, q𝑦::T, q𝑧::T) where T
-    #     q𝑤, q𝑥, q𝑦, q𝑧 = params(UnitQuaternion(q𝑤, q𝑥, q𝑦, q𝑧))
-    #     return new{T}(q𝑤, q𝑥, q𝑦, q𝑧)
-    # end
 end
 
 function getComponents(meas::QuatMeasurement)

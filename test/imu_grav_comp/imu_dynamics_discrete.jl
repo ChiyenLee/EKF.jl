@@ -46,12 +46,12 @@ function EKF.process(s::TrunkState, u::ImuInput, h::Float64)
 	f = [u.fx, u.fy, u.fz]
 	r, v, q, α, β = getComponents(s)
 	
-	C = UnitQuaternion(q)' # from body to world
+	C = UnitQuaternion(q) # from body to world
 
-	rₖ₊₁ = r + h*v + 0.5*h^2*(C'*(f-α)-g) 
+	rₖ₊₁ = r + h*v + 0.5*h^2*(C*(f-α)-g) 
 	
-	vₖ₊₁ = v + h*(C'*(f - α) - g)
-	qₖ₊₁ = q + 0.5 * ∇differential(C) * (ω - β)*h  #L(q) * ζ((ω-state.βω)*h)
+	vₖ₊₁ = v + h*(C*(f - α) - g)
+	qₖ₊₁ = q + 0.5 * ∇differential(C) * (ω - β) * h  #L(q) * ζ((ω-state.βω)*h)
 	qₖ₊₁ = qₖ₊₁ / norm(qₖ₊₁)
 	return TrunkState([rₖ₊₁;vₖ₊₁;qₖ₊₁;α;β])
 end 

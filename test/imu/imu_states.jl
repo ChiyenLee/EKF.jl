@@ -1,9 +1,10 @@
 using EKF
 using StaticArrays
-using LinearAlgebra: I
 using SparseArrays
+using LinearAlgebra: I
+using ForwardDiff: jacobian
 using Rotations: UnitQuaternion, RotationError, CayleyMap, add_error
-using Rotations: rotation_error, params, ∇differential
+using Rotations: rotation_error, params, ∇differential, kinematics
 
 
 ###############################################################################
@@ -99,4 +100,67 @@ function EKF.measurement_error(m2::ViconMeasurement, m1::ViconMeasurement)::Vico
 
     dx = ViconErrorMeasurement(pos_er..., ori_er...)
     return dx
+end
+
+
+###############################################################################
+#                               Dynamics
+###############################################################################
+function dynamics(state::ImuState, input::ImuInput)
+	g = [0,0,9.81]
+
+    p, q, v, α, β = getComponents(state)
+    v̇ᵢ, ωᵢ = getComponents(input)
+    # Body velocity writen in inertia cooridantes
+    ṗ = q * v
+    # Compute the rotational kinematics
+    q̇ = kinematics(q, ωᵢ - β)
+    # Translational acceleration
+    v̇ = v̇ᵢ - α - q' * g
+    # Rate of change in biases is 0
+    α̇ = zeros(3); β̇ = zeros(3)
+    return [ṗ; q̇; v̇; α̇; β̇]
+end
+
+function EKF.process(x::ImuState, u::ImuInput, dt::Float64)::ImuState
+    k1 = dynamics(x, u)
+    k2 = dynamics(x + 0.5 * dt * k1, u)
+    k3 = dynamics(x + 0.5 * dt * k2, u)
+    k4 = dynamics(x + dt * k3, u)
+    xnext = ImuState(x + (dt/6.0) * (k1 + 2*k2 + 2*k3 + k4))
+
+    xnext.q𝑤, xnext.q𝑥, xnext.q𝑦, xnext.q𝑧 = params(UnitQuaternion(xnext.q𝑤, xnext.q𝑥, xnext.q𝑦, xnext.q𝑧))
+
+    return xnext
+end
+
+function EKF.error_process_jacobian(state::ImuState, input::ImuInput, dt::Float64)
+    A = jacobian(st->process(ImuState(st), input, dt), SVector(state))
+
+    _, qₖ, _, _, _  = getComponents(state)
+    Jₖ = cat(I(3), ∇differential(qₖ), I(9), dims=(1,2))
+
+    _, qₖ₊₁, _, _, _  = getComponents(state)
+    Jₖ₊₁ = cat(I(3), ∇differential(qₖ₊₁), I(9), dims=(1,2))
+
+    # ∂(dxₖ)/∂xₖ * ∂f(xₖ,uₖ)/∂(xₖ₋₁) * ∂(xₖ₋₁)/∂(dxₖ₋₁)
+    return Jₖ₊₁' * A * Jₖ
+end
+
+function EKF.measure(state::ImuState)::ViconMeasurement
+    p, q, v, α, β = getComponents(state)
+    return ViconMeasurement(p..., params(q)...)
+end
+
+function EKF.error_measure_jacobian(state::ImuState)
+    A = jacobian(st->measure(ImuState(st)), state)
+
+    _, qₖ₊₁, _, _, _  = getComponents(state)
+    Jₖ₊₁ = cat(I(3), ∇differential(qₖ₊₁), I(9), dims=(1,2))
+
+    _, q̂ = getComponents(measure(state))
+    Gₖ₊₁ = cat(I(3), ∇differential(q̂), dims=(1,2))
+
+    # ∂(dyₖ)/∂(yₖ) * ∂(yₖ)/∂(yₖ) * ∂(yₖ)/∂(dyₖ)
+    return Gₖ₊₁' * A * Jₖ₊₁
 end
