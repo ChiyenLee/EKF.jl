@@ -11,7 +11,7 @@ module EKF
     include("abstract_states.jl") 
 
     struct ErrorStateFilter{S<:State, ES<:ErrorState, IN<:Input, 
-                            M<:Measurement, EM<:ErrorMeasurement} 
+                            M<:Union{Measurement, Vector{Measurement}}, EM<:ErrorMeasurement} 
         est_state::S
         est_cov::Matrix
 
@@ -76,11 +76,12 @@ module EKF
         ekf.est_cov .= Pₖ₊₁ₗₖ
     end 
 
-
     function innovation(ekf::ErrorStateFilter{S, ES, IN, M, EM}, 
                         xₖ₊₁ₗₖ::S, Pₖ₊₁ₗₖ::Matrix, yₖ::M
                         ) where {S<:State, ES<:ErrorState, IN<:Input, 
-                                 M<:Measurement, EM<:ErrorMeasurement}
+                                 M<:Union{Measurement, AbstractVector{Measurement}}, Mm<:Measurement, EM<:ErrorMeasurement}
+        @assert Mm in M
+        
         # Relabeling
         V = ekf.measure_cov
 
