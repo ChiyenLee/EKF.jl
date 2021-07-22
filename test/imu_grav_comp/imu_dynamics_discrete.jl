@@ -48,10 +48,9 @@ function EKF.process(s::TrunkState, u::ImuInput, h::Float64)
 	
 	C = UnitQuaternion(q) # from body to world
 
-	rₖ₊₁ = r + h*v + 0.5*h^2*(C'*(f-α)-g) 
-	# println(C'*(f-α)-g)	
-	vₖ₊₁ = v + h*(C'*(f - α) - g)
-	qₖ₊₁ = q + 0.5 * ∇differential(C) * (ω - β)*h  #L(q) * ζ((ω-state.βω)*h)
+	rₖ₊₁ = r + h*v + 0.5*h^2*(C*(f-α)-g)  
+	vₖ₊₁ = v + h*(C*(f - α) - g)
+	qₖ₊₁ = q + 0.5 * ∇differential(C) * (ω - β) * h  #L(q) * ζ((ω-state.βω)*h)
 	qₖ₊₁ = qₖ₊₁ / norm(qₖ₊₁)
 	return TrunkState([rₖ₊₁;vₖ₊₁;qₖ₊₁;α;β])
 end 
@@ -59,8 +58,8 @@ end
 
 function EKF.error_process_jacobian(s::TrunkState, u::ImuInput, h::Float64)
 	sₖ₊₁ₗₖ = process(s,u,h) # not ideal to call it again here but oh well 
-	qₖ = UnitQuaternion([s.qw, s.qx, s.qy, s.qz]) 
-	qₖ₊₁ₗₖ = UnitQuaternion([sₖ₊₁ₗₖ.qw, sₖ₊₁ₗₖ.qx, sₖ₊₁ₗₖ.qy, sₖ₊₁ₗₖ.qz]) 
+	qₖ = UnitQuaternion([s.qw, s.qx, s.qy, s.qz])
+	qₖ₊₁ₗₖ = UnitQuaternion([sₖ₊₁ₗₖ.qw, sₖ₊₁ₗₖ.qx, sₖ₊₁ₗₖ.qy, sₖ₊₁ₗₖ.qz])
 
 	Jₖ = blockdiag(sparse(I(6)), sparse(∇differential(qₖ)), sparse(I(6))  )
 	Jₖ₊₁ₗₖ = blockdiag(sparse(I(6)), sparse(∇differential(qₖ₊₁ₗₖ)), sparse(I(6))  )
