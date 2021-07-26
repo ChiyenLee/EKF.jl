@@ -7,6 +7,7 @@ using Rotations: UnitQuaternion, RotationError, CayleyMap, add_error
 using Rotations: rotation_error, params, ∇differential, kinematics
 
 
+
 ###############################################################################
 #
 ###############################################################################
@@ -18,9 +19,16 @@ mutable struct ImuState{T} <: State{16, T}
     β𝑥::T; β𝑦::T; β𝑧::T
 end
 
-function getComponents(state::ImuState)
-    return (state[1:3], UnitQuaternion(state[4:7]..., false), state[8:10],
-            state[11:13], state[14:16])
+function getComponents(state::ImuState)::SVector{5}
+    pos = @SVector [state.p𝑥, state.p𝑦, state.p𝑧]
+    ori = @SVector [state.q𝑤, state.q𝑥, state.q𝑦, state.q𝑧]
+    vel = @SVector [state.v𝑥, state.v𝑦, state.v𝑧]
+    acc_bias = @SVector [state.α𝑥, state.α𝑦, state.α𝑧]
+    gyr_bias = @SVector [state.β𝑥, state.β𝑦, state.β𝑧]
+
+    return (pos, ori, vel, acc_bias, gyr_bias)
+
+    return  @SVector [pos, ori, vel, acc_bias, gyr_bias]
 end
 
 ###############################################################################
@@ -77,8 +85,17 @@ end
 
 # Add an error state to another state to create a new state
 function EKF.state_composition(x::ImuState, dx::ImuErrorState)::ImuState
-    p, q, v, α, β = getComponents(x)
-    𝕕p, 𝕕q, 𝕕v, 𝕕α, 𝕕β = getComponents(dx)
+    p = @SVector [x.p𝑥, x.p𝑦, x.p𝑧]
+    q = UnitQuaternion(x.q𝑤, x.q𝑥, x.q𝑦, x.q𝑧)
+    v = @SVector [x.v𝑥, x.v𝑦, x.v𝑧]
+    α = @SVector [x.α𝑥, x.α𝑦, x.α𝑧]
+    β = @SVector [x.β𝑥, x.β𝑦, x.β𝑧]
+
+    𝕕p = @SVector [dx.𝕕p𝑥, dx.𝕕p𝑦, dx.𝕕p𝑧]
+    𝕕q = RotationError(dx.𝕕q𝑥, dx.𝕕q𝑦, dx.𝕕q𝑧, CayleyMap())
+    𝕕v = @SVector [dx.𝕕v𝑥, dx.𝕕v𝑦, dx.𝕕v𝑧]
+    𝕕α = @SVector [dx.𝕕α𝑥, dx.𝕕α𝑦, dx.𝕕α𝑧]
+    𝕕β = @SVector [dx.𝕕β𝑥, dx.𝕕β𝑦, dx.𝕕β𝑧]
 
     pos = p + 𝕕p
     ori = add_error(q, 𝕕q)
@@ -107,7 +124,7 @@ end
 #                               Dynamics
 ###############################################################################
 function dynamics(state::ImuState, input::ImuInput)
-	g = [0,0,9.81]
+	g = @SVector [0, 0, 9.81]
 
     p, q, v, α, β = getComponents(state)
     v̇ᵢ, ωᵢ = getComponents(input)
@@ -118,8 +135,12 @@ function dynamics(state::ImuState, input::ImuInput)
     # Translational acceleration
     v̇ = v̇ᵢ - α - q' * g
     # Rate of change in biases is 0
-    α̇ = zeros(3); β̇ = zeros(3)
-    return [ṗ; q̇; v̇; α̇; β̇]
+    α̇ = @SVector zeros(3); β̇ = @SVector zeros(3)
+    return @SVector [ṗ[1], ṗ[2], ṗ[3],
+                     q̇[1], q̇[2], q̇[3], q̇[4],
+                     v̇[1], v̇[2], v̇[3],
+                     α̇[1], α̇[2], α̇[3],
+                     β̇[1], β̇[2], β̇[3]]
 end
 
 function EKF.process(x::ImuState, u::ImuInput, dt::Float64)::ImuState
@@ -134,7 +155,7 @@ function EKF.process(x::ImuState, u::ImuInput, dt::Float64)::ImuState
     return xnext
 end
 
-function EKF.error_process_jacobian(state::ImuState, input::ImuInput, dt::Float64)
+function EKF.error_process_jacobian(state::ImuState, input::ImuInput, dt::Float64)::SMatrix
     A = jacobian(st->process(ImuState(st), input, dt), SVector(state))
 
     _, qₖ, _, _, _  = getComponents(state)
