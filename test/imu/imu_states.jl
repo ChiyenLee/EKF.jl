@@ -186,7 +186,6 @@ function EKF.error_measure_jacobian(xₖ::ImuState)::SMatrix{length(ViconError),
     Gₖ = [(@SMatrix [i==j ? 1. : 0. for i = 1:3, j = 1:6]);
           [(@SMatrix zeros(4, 3))  ∇differential(q̂)]]
 
-
     # ∂(dyₖ)/∂(yₖ) * ∂(yₖ)/∂(yₖ) * ∂(yₖ)/∂(dyₖ)
     return Gₖ' * A * Jₖ
 end
