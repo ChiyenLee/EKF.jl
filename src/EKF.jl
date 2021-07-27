@@ -77,7 +77,7 @@ module EKF
                         ) where {S<:State, ES<:ErrorState, IN<:Input,
                                  M<:Measurement, EM<:ErrorMeasurement}
         # Relabeling
-        V = ekf.measure_cov
+        V = SMatrix(ekf.measure_cov)
 
         # Innovation
         zₖ₊₁ = measurement_error(yₖ, measure(xₖ₊₁ₗₖ))
@@ -93,8 +93,8 @@ module EKF
     function update!(ekf::ErrorStateFilter{S, ES, IN, M, EM},
                      yₖ::M) where {S<:State, ES<:ErrorState, IN<:Input,
                               M<:Measurement, EM<:ErrorMeasurement}
-        Pₖ₊₁ₗₖ = ekf.est_cov
-        xₖ₊₁ₗₖ = ekf.est_state
+        Pₖ₊₁ₗₖ = SMatrix(ekf.est_cov)
+        xₖ₊₁ₗₖ = S(ekf.est_state)
 
         zₖ₊₁, Cₖ₊₁, Lₖ₊₁= innovation(ekf, xₖ₊₁ₗₖ, Pₖ₊₁ₗₖ, yₖ)
 

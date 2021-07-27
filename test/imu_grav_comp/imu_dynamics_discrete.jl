@@ -87,13 +87,12 @@ function EKF.measure(s::TrunkState)::Vicon
 end
 
 function EKF.error_measure_jacobian(s::TrunkState)
-	H = zeros(length(ViconError),length(TrunkError))
-	Jₓ = ∇differential(UnitQuaternion([s.qw, s.qx, s.qy, s.qz]))
-	# Jy = ∇differential(UnitQuaternion([v.qw, v.qx, v.qy, v.qz]))
+	H = @MMatrix zeros(length(ViconError),length(TrunkError))
+	Jₓ = ∇differential(UnitQuaternion(s.qw, s.qx, s.qy, s.qz))
 
-	H[4:6,7:9] = Jₓ' * I(4) * Jₓ
-	H[1:3,1:3] = I(3)
-	# H = SMatrix{length(ViconError),length(TrunkError)}(H)
+	H[4:6,7:9] .= Jₓ' * Jₓ
+	H[1,1] = 1; H[2,2] = 1; H[3,3] = 1
+	H = SMatrix(H)
 	return H 
 end 
 
@@ -102,7 +101,7 @@ end
 ###############################################################################
 # Add an error state to another state to create a new state
 function EKF.state_composition(s::TrunkState, ds::TrunkError)
-	dϕ = [ds.𝕕ϕx, ds.𝕕ϕy, ds.𝕕ϕz]
+	dϕ = @SVector [ds.𝕕ϕx, ds.𝕕ϕy, ds.𝕕ϕz]
 	r, v, q, α, β = getComponents(s)
 	dr, dv, dϕ, dα, dβ = getComponents(ds)
 
@@ -115,7 +114,7 @@ function EKF.state_composition(s::TrunkState, ds::TrunkError)
 	α = α + dα
 	β = β + dβ 
 
-    return TrunkState([r; v; qₖ₊₁; α; β])
+    return TrunkState(r..., v..., qₖ₊₁..., α..., β...)
 end
 
 # Compute the error measurement between two measurement
@@ -127,7 +126,7 @@ function EKF.measurement_error(m2::Vicon, m1::Vicon)
 	dr = r2 - r1 
 	dϕ = rotation_error(q2, q1, CayleyMap())
 
-    return ViconError([dr;dϕ])
+    return ViconError(dr...,dϕ...)
 end
 
 ###############################################################################

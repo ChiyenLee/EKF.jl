@@ -27,8 +27,11 @@ h = 0.005
 # process(state, input, h)
 # @benchmark process($state, $input, $h)
 # @benchmark error_process_jacobian($state, $input, $h)
-@benchmark prediction!($ekf, $input, dt=$h)
-# prediction!(ekf, input, dt=h)
+# @benchmark prediction!($ekf, $input, dt=$h)
+# @benchmark measure($state)
+# @benchmark error_measure_jacobian($state)
+@benchmark update!($ekf, $vicon)
+
 
 # for i in 1:1000
 	# @time SVector(1,2,3)
