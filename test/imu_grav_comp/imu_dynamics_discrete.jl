@@ -68,10 +68,15 @@ function EKF.error_process_jacobian(s::TrunkState, u::ImuInput, h::Float64)
 	qₖ = UnitQuaternion(s.qw, s.qx, s.qy, s.qz)
 	qₖ₊₁ₗₖ = UnitQuaternion(sₖ₊₁ₗₖ.qw, sₖ₊₁ₗₖ.qx, sₖ₊₁ₗₖ.qy, sₖ₊₁ₗₖ.qz)
 
+	I6 = @MMatrix zeros(6,6)
+	I6[1,1] = 1; I6[2,2] = 1; I6[3,3] =1; I6[4,4] = 1; I6[5,5] = 1; I6[6,6] =1;
+	I6 = SMatrix(I6)
 	Jₖ = @MMatrix zeros(16,15);	
 	Jₖ₊₁ₗₖ = @MMatrix zeros(16,15);
 	Jₖ[7:10, 7:9] .= ∇differential(qₖ)
+	Jₖ[1:6, 1:6] .= I6;  Jₖ[11:16, 10:15] .= I6; 
 	Jₖ₊₁ₗₖ[7:10, 7:9] .= ∇differential(qₖ₊₁ₗₖ)
+	Jₖ₊₁ₗₖ[1:6, 1:6] .= I6;  Jₖ₊₁ₗₖ[11:16, 10:15] .= I6;
 
 	Jₖ = SMatrix(Jₖ)
 	Jₖ₊₁ₗₖ = SMatrix(Jₖ₊₁ₗₖ)
@@ -90,8 +95,11 @@ function EKF.error_measure_jacobian(s::TrunkState)
 	H = @MMatrix zeros(length(ViconError),length(TrunkError))
 	Jₓ = ∇differential(UnitQuaternion(s.qw, s.qx, s.qy, s.qz))
 
-	H[4:6,7:9] .= Jₓ' * Jₓ
-	H[1,1] = 1; H[2,2] = 1; H[3,3] = 1
+	# H[4:6,7:9] .= Jₓ' * Jₓ
+	# H[4:6,7:9] .= Jₓ' * I(4) * Jₓ
+	# H[1,1] = 1; H[2,2] = 1; H[3,3] = 1
+	H[4:6,7:9] = Jₓ' * I(4) * Jₓ
+	H[1:3,1:3] = I(3)
 	H = SMatrix(H)
 	return H 
 end 
