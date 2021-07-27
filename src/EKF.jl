@@ -1,17 +1,20 @@
 module EKF
-    export State, ErrorState, Input, Measurement, ErrorMeasurement
+    using StaticArrays: length
+using Base: Float64
+export State, ErrorState, Input, Measurement, ErrorMeasurement
     export ErrorStateFilter, estimateState!, prediction, innovation, update!
     export measure, process, error_measure_jacobian, error_process_jacobian, ⊖ₘ, ⊕ₛ
     export prediction!, update!
 
     using StaticArrays
-    using LinearAlgebra: inv, I, issymmetric, isposdef
+    using LinearAlgebra: inv, I, issymmetric, isposdef, length
     using LinearAlgebra
 
     include("abstract_states.jl")
 
     struct ErrorStateFilter{S<:State, ES<:ErrorState, IN<:Input,
-                            M<:Measurement, EM<:ErrorMeasurement, Nₛ, Nₑₛ, Nᵢ, Nₘ, Nₑₘ, Lₑₛ,Lₑₘ, T}  
+                            M<:Measurement, EM<:ErrorMeasurement,
+                            Nₛ, Nₑₛ, Nᵢ, Nₘ, Nₑₘ, Lₑₛ, Lₑₘ, T}
         est_state::MVector{Nₛ, T}
         est_cov::MMatrix{Nₑₛ, Nₑₛ, T,  Lₑₛ}
 
@@ -34,32 +37,29 @@ module EKF
             try
                 error_process_jacobian(est_state, rand(IN), rand())
             catch MethodError
-                error_process_jacobian(est_state, rand(IN), rand())
                 error("User must define the `error_process_jacobian` function: `error_process_jacobian(state::S, input::IN, dt::Float64)`")
             end
             try
                 error_measure_jacobian(est_state)
             catch MethodError
-                error_measure_jacobian(est_state)
                 error("User must define the `error_measure_jacobian` function: `error_measure_jacobian(state::S)`")
             end
 
-            est_state = MVector(est_state)
-            est_cov = MMatrix{length(ES), length(ES), Float64, length(ES)*length(ES)}(est_cov)
-            process_cov = MMatrix{length(ES), length(ES), Float64, length(ES)*length(ES)}(process_cov)
-            measure_cov = MMatrix{length(EM), length(EM), Float64, length(EM)*length(EM)}(measure_cov)
+            Nₛ, Nₑₛ, Nᵢ, Nₘ, Nₑₘ = length.([S, ES, IN, M, EM])
+            Lₑₛ, Lₑₘ, T = Nₑₛ * Nₑₛ, Nₑₘ * Nₑₘ, Float64
 
-            return new{S, ES, IN, M, EM, length(S), length(ES),length(IN), length(M), length(EM), length(ES)*length(ES), length(EM)*length(EM), Float64}(est_state, est_cov, process_cov, measure_cov)
+            est_state = MVector(est_state)
+            est_cov = MMatrix{Nₑₛ, Nₑₛ, T, Lₑₛ}(est_cov)
+            process_cov = MMatrix{Nₑₛ, Nₑₛ, T, Lₑₛ}(process_cov)
+            measure_cov = MMatrix{Nₑₘ, Nₑₘ, T, Lₑₘ}(measure_cov)
+
+            return new{S, ES, IN, M, EM, Nₛ, Nₑₛ, Nᵢ, Nₘ, Nₑₘ, Lₑₛ, Lₑₘ, T}(est_state, est_cov, process_cov, measure_cov)
         end
     end
 
-    function get_attitude_jacobian(ekf)
-        return att_jacobian
-    end 
-
-    function prediction!(ekf::ErrorStateFilter{S, ES, IN, M, EM}, uₖ::IN; dt=0.1
-                        ) where {S<:State, ES<:ErrorState, IN<:Input,
-                                 M<:Measurement, EM<:ErrorMeasurement}
+    function prediction!(ekf::ErrorStateFilter{S, ES, IN, M, EM}, uₖ::IN, dt::Float64
+                         )::Nothing where {S<:State, ES<:ErrorState, IN<:Input,
+                                           M<:Measurement, EM<:ErrorMeasurement}
         W = SMatrix(ekf.process_cov)
         Pₖₗₖ = SMatrix(ekf.est_cov)
         xₖₗₖ = S(ekf.est_state)
@@ -70,6 +70,8 @@ module EKF
 
         ekf.est_state .= xₖ₊₁ₗₖ
         ekf.est_cov .= Pₖ₊₁ₗₖ
+
+        return nothing
     end
 
     function innovation(ekf::ErrorStateFilter{S, ES, IN, M, EM},
@@ -90,9 +92,9 @@ module EKF
         return zₖ₊₁, Cₖ₊₁, Lₖ₊₁
     end
 
-    function update!(ekf::ErrorStateFilter{S, ES, IN, M, EM},
-                     yₖ::M) where {S<:State, ES<:ErrorState, IN<:Input,
-                              M<:Measurement, EM<:ErrorMeasurement}
+    function update!(ekf::ErrorStateFilter{S, ES, IN, M, EM}, yₖ::M
+                     )::Nothing where {S<:State, ES<:ErrorState, IN<:Input,
+                                       M<:Measurement, EM<:ErrorMeasurement}
         Pₖ₊₁ₗₖ = SMatrix(ekf.est_cov)
         xₖ₊₁ₗₖ = S(ekf.est_state)
 
@@ -104,13 +106,15 @@ module EKF
 
         ekf.est_state .= xₖ₊₁ₗₖ₊₁
         ekf.est_cov .= Pₖ₊₁ₗₖ₊₁
+
+        return nothing
     end
 
 
     function estimateState!(ekf::ErrorStateFilter{S, ES, IN, M, EM},
                             input::IN, measurement::M, dt::Float64
-                            ) where {S<:State, ES<:ErrorState, IN<:Input,
-                                     M<:Measurement, EM<:ErrorMeasurement}
+                            )::Nothing where {S<:State, ES<:ErrorState, IN<:Input,
+                                              M<:Measurement, EM<:ErrorMeasurement}
         # Relabeling
         xₖₗₖ = ekf.est_state
         Pₖₗₖ = ekf.est_cov
@@ -118,11 +122,11 @@ module EKF
         yₖ = measurement
 
         # Predict
-        prediction!(ekf, uₖ; dt=dt)
+        prediction!(ekf, uₖ, dt)
 
         # Update
-        xₖ₊₁ₗₖ₊₁, Pₖ₊₁ₗₖ₊₁ = update!(ekf, yₖ)
+        update!(ekf, yₖ)
 
-        return xₖ₊₁ₗₖ₊₁, Pₖ₊₁ₗₖ₊₁
+        return nothing
     end
 end # module ErrorStateEKF
