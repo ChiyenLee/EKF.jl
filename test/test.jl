@@ -1,3 +1,4 @@
+using Base: Float64
 using EKF
 using LinearAlgebra
 include("imu_grav_comp/imu_dynamics_discrete.jl")
@@ -12,9 +13,9 @@ q = rand(UnitQuaternion)
 β = rand(3)
 
 
-x1 = EKF.process(TrunkState(x..., v..., params(q)..., α..., β...), 
+x1 = EKF.process(TrunkState(x..., v..., params(q)..., α..., β...),
                  ImuInput(u...), .1)
-x2 = EKF.process(ImuState(x..., params(q)..., (q' * v)..., α..., β...), 
+x2 = EKF.process(ImuState(x..., params(q)..., (q' * v)..., α..., β...),
                  ImuInput2(u...), .1)
 
 p1, v1, q1, α1, β1 = getComponents(x1)
