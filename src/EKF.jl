@@ -116,8 +116,6 @@ export State, ErrorState, Input, Measurement, ErrorMeasurement
                             )::Nothing where {S<:State, ES<:ErrorState, IN<:Input,
                                               M<:Measurement, EM<:ErrorMeasurement}
         # Relabeling
-        xₖₗₖ = ekf.est_state
-        Pₖₗₖ = ekf.est_cov
         uₖ = input
         yₖ = measurement
 
