@@ -13,10 +13,10 @@ module EKF
     struct ErrorStateFilter{S<:State, ES<:ErrorState, IN<:Input,
                             M<:Union{Measurement, Vector{Measurement}}, EM<:ErrorMeasurement}
         est_state::S
-        est_cov::SMatrix
+        est_cov::Matrix
 
-        process_cov::SMatrix  # Dynamics Noise Covariance
-        measure_cov::SMatrix  # Measurement Noise Covariance
+        process_cov::Matrix  # Dynamics Noise Covariance
+        measure_cov::Matrix  # Measurement Noise Covariance
 
         function ErrorStateFilter{S, ES, IN, M, EM}(est_state::S, est_cov::SMatrix,
                                                     process_cov::SMatrix, measure_cov::SMatrix
@@ -44,10 +44,14 @@ module EKF
                 error("User must define the `error_measure_jacobian` function: `error_measure_jacobian(state::S)`")
             end
 
+
             return new{S, ES, IN, M, EM}(est_state, est_cov, process_cov, measure_cov)
         end
     end
 
+    function get_attitude_jacobian(ekf)
+        return att_jacobian
+    end 
 
     function prediction!(ekf::ErrorStateFilter{S, ES, IN, M, EM}, uₖ::IN; dt=0.1
                         ) where {S<:State, ES<:ErrorState, IN<:Input,
