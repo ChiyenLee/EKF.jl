@@ -23,7 +23,12 @@ vicon = Vicon([0. 0. 0. q_rand...])
 ekf = ErrorStateFilter{TrunkState, TrunkError, ImuInput, Vicon, ViconError}(state, P, W, R)
 h = 0.005
 
-@btime error_process_jacobian($state, $input, $h)
+
+# process(state, input, h)
+# @benchmark process($state, $input, $h)
+# @benchmark error_process_jacobian($state, $input, $h)
+@benchmark prediction!($ekf, $input, dt=$h)
+# prediction!(ekf, input, dt=h)
 
 # for i in 1:1000
 	# @time SVector(1,2,3)

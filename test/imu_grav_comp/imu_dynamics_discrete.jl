@@ -58,6 +58,7 @@ function EKF.process(s::TrunkState, u::ImuInput, h::Float64)
 	vₖ₊₁ = v + h*(C*(f - α) - g)
 	qₖ₊₁ = q + 0.5 * ∇differential(C) * (ω - β) * h  #L(q) * ζ((ω-state.βω)*h)
 	qₖ₊₁ = qₖ₊₁ / norm(qₖ₊₁)
+
 	return TrunkState(rₖ₊₁...,vₖ₊₁...,qₖ₊₁...,α...,β...)
 end 
 
@@ -67,17 +68,15 @@ function EKF.error_process_jacobian(s::TrunkState, u::ImuInput, h::Float64)
 	qₖ = UnitQuaternion(s.qw, s.qx, s.qy, s.qz)
 	qₖ₊₁ₗₖ = UnitQuaternion(sₖ₊₁ₗₖ.qw, sₖ₊₁ₗₖ.qx, sₖ₊₁ₗₖ.qy, sₖ₊₁ₗₖ.qz)
 
-	R1 = @SMatrix [i==j ? 1. : 0. for i = 1:6, j = 1:15]
-	M4 = @SMatrix zeros(4,6); M5 = ∇differential(qₖ); M6 =  @SMatrix zeros(4, 6)
-    R2 = [M4  M5  M6]
-    R3 = @SMatrix [i+6==j ? 1. : 0. for i = 1:6, j = 1:15]
-    Jₖ = [R1; R2; R3]	
+	Jₖ = @MMatrix zeros(16,15);	
+	Jₖ₊₁ₗₖ = @MMatrix zeros(16,15);
+	Jₖ[7:10, 7:9] .= ∇differential(qₖ)
+	Jₖ₊₁ₗₖ[7:10, 7:9] .= ∇differential(qₖ₊₁ₗₖ)
 
-	# Jₖ = blockdiag(sparse(I(6)), sparse(∇differential(qₖ)), sparse(I(6))  )
-	# Jₖ₊₁ₗₖ = blockdiag(sparse(I(6)), sparse(∇differential(qₖ₊₁ₗₖ)), sparse(I(6))  )
-	Jₖ₊₁ₗₖ = AttitudeJacobian(blockdiag(sparse(I(6)), sparse(∇differential(qₖ₊₁ₗₖ)), sparse(I(6))  ))
+	Jₖ = SMatrix(Jₖ)
+	Jₖ₊₁ₗₖ = SMatrix(Jₖ₊₁ₗₖ)
     F = jacobian(st->process(TrunkState(st), u, h), SVector(s))
-	return Jₖ₊₁ₗₖ' * F * Jₖ
+	return Jₖ₊₁ₗₖ' * F * Jₖ 
 end
 
 ###############################################################################

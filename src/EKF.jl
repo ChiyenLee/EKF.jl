@@ -11,15 +11,15 @@ module EKF
     include("abstract_states.jl")
 
     struct ErrorStateFilter{S<:State, ES<:ErrorState, IN<:Input,
-                            M<:Union{Measurement, Vector{Measurement}}, EM<:ErrorMeasurement}
-        est_state::S
-        est_cov::Matrix
+                            M<:Measurement, EM<:ErrorMeasurement, Nₛ, Nₑₛ, Nᵢ, Nₘ, Nₑₘ, Lₑₛ,Lₑₘ, T}  
+        est_state::MVector{Nₛ, T}
+        est_cov::MMatrix{Nₑₛ, Nₑₛ, T,  Lₑₛ}
 
-        process_cov::Matrix  # Dynamics Noise Covariance
-        measure_cov::Matrix  # Measurement Noise Covariance
+        process_cov::MMatrix{Nₑₛ, Nₑₛ, T,  Lₑₛ}  # Dynamics Noise Covariance
+        measure_cov::MMatrix{Nₑₘ, Nₑₘ, T,  Lₑₘ}  # Measurement Noise Covariance
 
-        function ErrorStateFilter{S, ES, IN, M, EM}(est_state::S, est_cov::SMatrix,
-                                                    process_cov::SMatrix, measure_cov::SMatrix
+        function ErrorStateFilter{S, ES, IN, M, EM}(est_state::AbstractVector, est_cov::Matrix,
+                                                    process_cov::Matrix, measure_cov::Matrix
                                                     ) where {S, ES, IN, M, EM}
             try
                 process(est_state, rand(IN), rand())
@@ -44,8 +44,12 @@ module EKF
                 error("User must define the `error_measure_jacobian` function: `error_measure_jacobian(state::S)`")
             end
 
+            est_state = MVector(est_state)
+            est_cov = MMatrix{length(ES), length(ES), Float64, length(ES)*length(ES)}(est_cov)
+            process_cov = MMatrix{length(ES), length(ES), Float64, length(ES)*length(ES)}(process_cov)
+            measure_cov = MMatrix{length(EM), length(EM), Float64, length(EM)*length(EM)}(measure_cov)
 
-            return new{S, ES, IN, M, EM}(est_state, est_cov, process_cov, measure_cov)
+            return new{S, ES, IN, M, EM, length(S), length(ES),length(IN), length(M), length(EM), length(ES)*length(ES), length(EM)*length(EM), Float64}(est_state, est_cov, process_cov, measure_cov)
         end
     end
 
@@ -56,9 +60,9 @@ module EKF
     function prediction!(ekf::ErrorStateFilter{S, ES, IN, M, EM}, uₖ::IN; dt=0.1
                         ) where {S<:State, ES<:ErrorState, IN<:Input,
                                  M<:Measurement, EM<:ErrorMeasurement}
-        W = ekf.process_cov
-        Pₖₗₖ = ekf.est_cov
-        xₖₗₖ = ekf.est_state
+        W = SMatrix(ekf.process_cov)
+        Pₖₗₖ = SMatrix(ekf.est_cov)
+        xₖₗₖ = S(ekf.est_state)
 
         xₖ₊₁ₗₖ = process(xₖₗₖ, uₖ, dt)
         Aₖ = error_process_jacobian(xₖₗₖ, uₖ, dt)
