@@ -12,8 +12,12 @@ export State, ErrorState, Input, Measurement, ErrorMeasurement
 
     include("abstract_states.jl")
 
-    struct ErrorStateFilter{S<:State, ES<:ErrorState, IN<:Input,
-                            M<:Measurement, EM<:ErrorMeasurement}
+    const state_size = 0::Int64
+    const error_state_size = 0::Int64
+    const error_measure_size = 0::Int64
+
+    struct ErrorStateFilter{S{T}<:State, ES{T}<:ErrorState, IN{T}<:Input,
+                            M{T}<:Measurement, EM{T}<:ErrorMeasurement}
         est_state::MVector
         est_cov::MMatrix
 
@@ -52,7 +56,6 @@ export State, ErrorState, Input, Measurement, ErrorMeasurement
             return new{S, ES, IN, M, EM}(est_state, est_cov, process_cov, measure_cov)
         end
     end
-
 
     function prediction!(ekf::ErrorStateFilter{S, ES, IN, M, EM}, uₖ::IN, dt::Float64
                         )::Nothing where {S<:State, ES<:ErrorState, IN<:Input,
