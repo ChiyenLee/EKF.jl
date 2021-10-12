@@ -1,7 +1,6 @@
 using Base: Float64
 using EKF
 using LinearAlgebra
-include("imu_grav_comp/imu_dynamics_discrete.jl")
 include("imu/imu_states.jl")
 
 u = rand(6)
