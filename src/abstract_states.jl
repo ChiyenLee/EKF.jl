@@ -7,9 +7,9 @@ struct EkfError <: Exception
 ###############################################################################
 abstract type State{N, T} <: FieldVector{N, T} end
 abstract type ErrorState{Nₑ, T} <: FieldVector{Nₑ, T} end
-
 abstract type Input{M, T} <: FieldVector{M, T} end
 
+abstract type Observation{T} end 
 abstract type Measurement{S, T} <: FieldVector{S, T} end
 abstract type ErrorMeasurement{Sₑ, T} <: FieldVector{Sₑ, T} end
 
@@ -27,11 +27,11 @@ end
 ###############################################################################
 #                       Measure / Measurement Jacobian
 ###############################################################################
-function measure(state::State)
+function measure(::Type{Measurement}, state::State)
     EkfError("User must define the `measure` function: `measure(state::$(typeof(state)))`")
 end
 
-function error_measure_jacobian(state::State)
+function error_measure_jacobian(::Type{Measurement}, state::State)
     EkfError("User must define the `error_measure_jacobian` function: `error_measure_jacobian(state::$(typeof(state)))`")
 end
 
