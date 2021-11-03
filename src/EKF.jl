@@ -1,6 +1,5 @@
 module EKF
     using StaticArrays
-
     # export State, ErrorState, Input, Measurement, ErrorMeasurement
     # export ErrorStateFilter, estimateState!, prediction, innovation, update!
     # export measure, process

@@ -46,25 +46,21 @@ end
 
 mutable struct ContactObservation1{T} <: EKF.Observation{T}
     measurement::ContactMeasure{T}
-    error_measurement::ErrorContactMeasure{T}
     measure_cov::SMatrix{length(ContactMeasure), length(ContactMeasure), T, length(ContactMeasure) * length(ContactMeasure)}
 end
 
 mutable struct ContactObservation2{T} <: EKF.Observation{T}
     measurement::ContactMeasure{T}
-    error_measurement::ErrorContactMeasure{T}
     measure_cov::SMatrix{length(ContactMeasure), length(ContactMeasure), T, length(ContactMeasure) * length(ContactMeasure)}
 end
 
 mutable struct ContactObservation3{T} <: EKF.Observation{T}
     measurement::ContactMeasure{T}
-    error_measurement::ErrorContactMeasure{T}
     measure_cov::SMatrix{length(ContactMeasure), length(ContactMeasure), T, length(ContactMeasure) * length(ContactMeasure)}
 end
 
 mutable struct ContactObservation4{T} <: EKF.Observation{T}
     measurement::ContactMeasure{T}
-    error_measurement::ErrorContactMeasure{T}
     measure_cov::SMatrix{length(ContactMeasure), length(ContactMeasure), T, length(ContactMeasure) * length(ContactMeasure)}
 end
 
@@ -110,33 +106,33 @@ end
 #   Measurement and measure joacbians 
 ###############################################################################
 
-function EKF.measure(::Type{ContactObservation1{T}}, x::LeggedState{T})::ContactMeasure where T 
+function EKF.measure(::Type{ContactObservation1{T}}, x::LeggedState)::ContactMeasure where T 
     r, q, v, p1, p2, p3 ,p4, α, β = getComponents(x)
     p_body = q' * (p1  - r) 
     return ContactMeasure(p_body...)
 end
 
-function EKF.measure(::Type{ContactObservation2{T}}, x::LeggedState{T})::ContactMeasure where T
+function EKF.measure(::Type{ContactObservation2{T}}, x::LeggedState)::ContactMeasure where T 
     r, q, v, p1, p2, p3 ,p4, α, β = getComponents(x)
     p_body = q' * (p2  - r) 
     return ContactMeasure(p_body...)
 end
 
-function EKF.measure(::Type{ContactObservation3{T}}, x::LeggedState{T})::ContactMeasure where T 
+function EKF.measure(::Type{ContactObservation3{T}}, x::LeggedState)::ContactMeasure where T 
     r, q, v, p1, p2, p3 ,p4, α, β = getComponents(x)
     p_body = q' * (p3  - r) 
     return ContactMeasure(p_body...)
 end
 
-function EKF.measure(::Type{ContactObservation4{T}}, x::LeggedState{T})::ContactMeasure where T 
+function EKF.measure(::Type{ContactObservation4{T}}, x::LeggedState)::ContactMeasure where T 
     r, q, v, p1, p2, p3 ,p4, α, β = getComponents(x)
     p_body = q' * (p4  - r) 
     return ContactMeasure(p_body...)
 end
 
 
-function EKF.error_measure_jacobian(::Type{ContactObservation1{Float64}}, xₖ::LeggedState)::SMatrix{length(ErrorContactMeasure), length(LeggedError), Float64}
-    A = ForwardDiff.jacobian(st->EKF.measure(ContactObservation1, LeggedState(st)), SVector(xₖ))
+function EKF.error_measure_jacobian(::Type{ContactObservation1{T}}, xₖ::LeggedState)::SMatrix{length(ErrorContactMeasure), length(LeggedError), Float64} where T 
+    A = ForwardDiff.jacobian(st->EKF.measure(ContactObservation1{T}, LeggedState(st)), SVector(xₖ))
 
     qₖ = Rotations.UnitQuaternion(xₖ.qw, xₖ.qx, xₖ.qy, xₖ.qz)
 	Jₖ = @MMatrix zeros(length(LeggedState), length(LeggedError));
@@ -146,8 +142,8 @@ function EKF.error_measure_jacobian(::Type{ContactObservation1{Float64}}, xₖ::
     return A * Jₖ
 end
 
-function EKF.error_measure_jacobian(::Type{ContactObservation2{Float64}}, xₖ::LeggedState)::SMatrix{length(ErrorContactMeasure), length(LeggedError), Float64}
-    A = ForwardDiff.jacobian(st->EKF.measure(ContactObservation2, LeggedState(st)), SVector(xₖ))
+function EKF.error_measure_jacobian(::Type{ContactObservation2{T}}, xₖ::LeggedState)::SMatrix{length(ErrorContactMeasure), length(LeggedError), Float64} where T
+    A = ForwardDiff.jacobian(st->EKF.measure(ContactObservation2{T}, LeggedState(st)), SVector(xₖ))
 
     qₖ = Rotations.UnitQuaternion(xₖ.qw, xₖ.qx, xₖ.qy, xₖ.qz)
 	Jₖ = @MMatrix zeros(length(LeggedState), length(LeggedError));
@@ -157,8 +153,8 @@ function EKF.error_measure_jacobian(::Type{ContactObservation2{Float64}}, xₖ::
     return A * Jₖ
 end
 
-function EKF.error_measure_jacobian(::Type{ContactObservation3{Float64}}, xₖ::LeggedState)::SMatrix{length(ErrorContactMeasure), length(LeggedError), Float64}
-    A = ForwardDiff.jacobian(st->EKF.measure(ContactObservation3, LeggedState(st)), SVector(xₖ))
+function EKF.error_measure_jacobian(::Type{ContactObservation3{T}}, xₖ::LeggedState)::SMatrix{length(ErrorContactMeasure), length(LeggedError), Float64} where T 
+    A = ForwardDiff.jacobian(st->EKF.measure(ContactObservation3{T}, LeggedState(st)), SVector(xₖ))
 
     qₖ = Rotations.UnitQuaternion(xₖ.qw, xₖ.qx, xₖ.qy, xₖ.qz)
 	Jₖ = @MMatrix zeros(length(LeggedState), length(LeggedError));
@@ -168,8 +164,8 @@ function EKF.error_measure_jacobian(::Type{ContactObservation3{Float64}}, xₖ::
     return A * Jₖ
 end
 
-function EKF.error_measure_jacobian(::Type{ContactObservation4{Float64}}, xₖ::LeggedState)::SMatrix{length(ErrorContactMeasure), length(LeggedError), Float64}
-    A = ForwardDiff.jacobian(st->EKF.measure(ContactObservation4, LeggedState(st)), SVector(xₖ))
+function EKF.error_measure_jacobian(::Type{ContactObservation4{T}}, xₖ::LeggedState)::SMatrix{length(ErrorContactMeasure), length(LeggedError), Float64} where T 
+    A = ForwardDiff.jacobian(st->EKF.measure(ContactObservation4{T}, LeggedState(st)), SVector(xₖ))
 
     qₖ = Rotations.UnitQuaternion(xₖ.qw, xₖ.qx, xₖ.qy, xₖ.qz)
 	Jₖ = @MMatrix zeros(length(LeggedState), length(LeggedError));
@@ -225,9 +221,9 @@ function getComponents(x::LeggedState)
     p2 = @SVector [x.p2x, x.p2y, x.p2z]
     p3 = @SVector [x.p3x, x.p3y, x.p3z]
     p4 = @SVector [x.p4x, x.p4y, x.p4z]
-    v = @SVector [x.vx, x.vx, x.vz]
+    v = @SVector [x.vx, x.vy, x.vz]
     α = @SVector [x.αx, x.αy, x.αz]
-    β = @SVector [x.βx, x.βy, x.βy]
+    β = @SVector [x.βx, x.βy, x.βz]
     return r, q, v, p1, p2, p3 ,p4, α, β
 end
 
@@ -238,9 +234,9 @@ function getComponents(x::LeggedError)
     p2 = @SVector [x.p2x, x.p2y, x.p2z]
     p3 = @SVector [x.p3x, x.p3y, x.p3z]
     p4 = @SVector [x.p4x, x.p4y, x.p4z]
-    v = @SVector [x.vx, x.vx, x.vz]
+    v = @SVector [x.vx, x.vy, x.vz]
     α = @SVector [x.αx, x.αy, x.αz]
-    β = @SVector [x.βx, x.βy, x.βy]
+    β = @SVector [x.βx, x.βy, x.βz]
 	return  r, ϕ, v, p1, p2, p3 ,p4, α, β
 end
 
