@@ -7,5 +7,5 @@ module CommonSystems
 
     # include("imu_vicon.jl")
     # include("imu_dynamics_discrete.jl")
-    include("legged_states.jl")
+    # include("legged_states.jl")
 end

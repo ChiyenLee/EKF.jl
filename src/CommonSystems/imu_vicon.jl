@@ -50,35 +50,35 @@ end
 
 
 function getComponents(x::ImuState)
-    p = @SVector [x.p𝑥, x.p𝑦, x.p𝑧]
+    p = SA[x.p𝑥, x.p𝑦, x.p𝑧]
     q = Rotations.UnitQuaternion(x.q𝑤, x.q𝑥, x.q𝑦, x.q𝑧)
-    v = @SVector [x.v𝑥, x.v𝑦, x.v𝑧]
-    α = @SVector [x.α𝑥, x.α𝑦, x.α𝑧]
-    β = @SVector [x.β𝑥, x.β𝑦, x.β𝑧]
+    v = SA[x.v𝑥, x.v𝑦, x.v𝑧]
+    α = SA[x.α𝑥, x.α𝑦, x.α𝑧]
+    β = SA[x.β𝑥, x.β𝑦, x.β𝑧]
     return p, q, v, α, β
 end
 
 
 function getComponents(u::ImuInput)
-    v̇ = @SVector [u.v̇𝑥, u.v̇𝑦, u.v̇𝑧]
-    ω = @SVector [u.ω𝑥, u.ω𝑦, u.ω𝑧]
+    v̇ = SA[u.v̇𝑥, u.v̇𝑦, u.v̇𝑧]
+    ω = SA[u.ω𝑥, u.ω𝑦, u.ω𝑧]
     return v̇, ω
 end
 
 # Add an error state to another state to create a new state
 function EKF.state_composition(x::ImuState, dx::ImuError)::ImuState
-    p = @SVector [x.p𝑥, x.p𝑦, x.p𝑧]
+    p = SA[x.p𝑥, x.p𝑦, x.p𝑧]
     q = Rotations.UnitQuaternion(x.q𝑤, x.q𝑥, x.q𝑦, x.q𝑧)
-    v = @SVector [x.v𝑥, x.v𝑦, x.v𝑧]
-    α = @SVector [x.α𝑥, x.α𝑦, x.α𝑧]
-    β = @SVector [x.β𝑥, x.β𝑦, x.β𝑧]
+    v = SA[x.v𝑥, x.v𝑦, x.v𝑧]
+    α = SA[x.α𝑥, x.α𝑦, x.α𝑧]
+    β = SA[x.β𝑥, x.β𝑦, x.β𝑧]
 
-    𝕕p = @SVector [dx.𝕕p𝑥, dx.𝕕p𝑦, dx.𝕕p𝑧]
-    tmp = @SVector [dx.𝕕q𝑥, dx.𝕕q𝑦, dx.𝕕q𝑧]
+    𝕕p = SA[dx.𝕕p𝑥, dx.𝕕p𝑦, dx.𝕕p𝑧]
+    tmp = SA[dx.𝕕q𝑥, dx.𝕕q𝑦, dx.𝕕q𝑧]
     𝕕q = Rotations.RotationError(tmp, Rotations.CayleyMap())
-    𝕕v = @SVector [dx.𝕕v𝑥, dx.𝕕v𝑦, dx.𝕕v𝑧]
-    𝕕α = @SVector [dx.𝕕α𝑥, dx.𝕕α𝑦, dx.𝕕α𝑧]
-    𝕕β = @SVector [dx.𝕕β𝑥, dx.𝕕β𝑦, dx.𝕕β𝑧]
+    𝕕v = SA[dx.𝕕v𝑥, dx.𝕕v𝑦, dx.𝕕v𝑧]
+    𝕕α = SA[dx.𝕕α𝑥, dx.𝕕α𝑦, dx.𝕕α𝑧]
+    𝕕β = SA[dx.𝕕β𝑥, dx.𝕕β𝑦, dx.𝕕β𝑧]
 
     pos = p + 𝕕p
     ori = Rotations.add_error(q, 𝕕q)
@@ -92,10 +92,10 @@ end
 
 # # Compute the error state between two states
 function EKF.measurement_error(m2::ViconMeasure, m1::ViconMeasure)::ViconError
-    p₁ = @SVector [m1.p𝑥, m1.p𝑦, m1.p𝑧]
+    p₁ = SA[m1.p𝑥, m1.p𝑦, m1.p𝑧]
     q₁ = Rotations.UnitQuaternion(m1.q𝑤, m1.q𝑥, m1.q𝑦, m1.q𝑧)
 
-    p₂ = @SVector [m2.p𝑥, m2.p𝑦, m2.p𝑧]
+    p₂ = SA[m2.p𝑥, m2.p𝑦, m2.p𝑧]
     q₂ = Rotations.UnitQuaternion(m2.q𝑤, m2.q𝑥, m2.q𝑦, m2.q𝑧)
 
     pos_er = p₂ - p₁
@@ -110,17 +110,17 @@ end
 #                               Dynamics
 ###############################################################################
 function dynamics(x::ImuState, u::ImuInput)::SVector{16}
-	g = @SVector [0, 0, 9.81]
+	g = SA[0, 0, 9.81]
 
     # Get various compoents
-    p = @SVector [x.p𝑥, x.p𝑦, x.p𝑧]
+    p = SA[x.p𝑥, x.p𝑦, x.p𝑧]
     q = Rotations.UnitQuaternion(x.q𝑤, x.q𝑥, x.q𝑦, x.q𝑧)
-    v = @SVector [x.v𝑥, x.v𝑦, x.v𝑧]
-    α = @SVector [x.α𝑥, x.α𝑦, x.α𝑧]
-    β = @SVector [x.β𝑥, x.β𝑦, x.β𝑧]
+    v = SA[x.v𝑥, x.v𝑦, x.v𝑧]
+    α = SA[x.α𝑥, x.α𝑦, x.α𝑧]
+    β = SA[x.β𝑥, x.β𝑦, x.β𝑧]
 
-    v̇ᵢ = @SVector [u.v̇𝑥, u.v̇𝑦, u.v̇𝑧]
-    ωᵢ = @SVector [u.ω𝑥, u.ω𝑦, u.ω𝑧]
+    v̇ᵢ = SA[u.v̇𝑥, u.v̇𝑦, u.v̇𝑧]
+    ωᵢ = SA[u.ω𝑥, u.ω𝑦, u.ω𝑧]
 
     # Body velocity writen in inertia cooridantes
     ṗ = q * v
@@ -131,11 +131,11 @@ function dynamics(x::ImuState, u::ImuInput)::SVector{16}
     # Rate of change in biases is 0
     α̇ = @SVector zeros(3); β̇ = @SVector zeros(3)
 
-    ret = @SVector [ṗ[1], ṗ[2], ṗ[3],
-                    q̇[1], q̇[2], q̇[3], q̇[4],
-                    v̇[1], v̇[2], v̇[3],
-                    α̇[1], α̇[2], α̇[3],
-                    β̇[1], β̇[2], β̇[3]]
+    ret = SA[ṗ[1], ṗ[2], ṗ[3],
+             q̇[1], q̇[2], q̇[3], q̇[4],
+             v̇[1], v̇[2], v̇[3],
+             α̇[1], α̇[2], α̇[3],
+             β̇[1], β̇[2], β̇[3]]
     return ret
 end
 
@@ -174,12 +174,12 @@ function EKF.error_process_jacobian(xₖ::ImuState, uₖ::ImuInput, dt::Float64)
     return Jₖ₊₁' * A * Jₖ
 end
 
-function EKF.measure(x::ImuState)::ViconMeasure
+function EKF.measure(::ViconMeasure, x::ImuState)::ViconMeasure
     return ViconMeasure(x.p𝑥, x.p𝑦, x.p𝑧, x.q𝑤, x.q𝑥, x.q𝑦, x.q𝑧)
 end
 
-function EKF.error_measure_jacobian(xₖ::ImuState)::SMatrix{length(ViconError), length(ImuError), Float64}
-    A = ForwardDiff.jacobian(st->EKF.measure(ImuState(st)), SVector(xₖ))
+function EKF.error_measure_jacobian(::ViconMeasure, xₖ::ImuState)::SMatrix{length(ViconError), length(ImuError), Float64}
+    A = ForwardDiff.jacobian(st->EKF.measure(::ViconMeasure, ImuState(st)), SVector(xₖ))
 
     qₖ = Rotations.UnitQuaternion(xₖ.q𝑤, xₖ.q𝑥, xₖ.q𝑦, xₖ.q𝑧)
 
@@ -187,7 +187,7 @@ function EKF.error_measure_jacobian(xₖ::ImuState)::SMatrix{length(ViconError),
           [(@SMatrix zeros(4, 3))  Rotations.∇differential(qₖ)  (@SMatrix zeros(4, 9))];
           (@SMatrix [i+6==j ? 1. : 0. for i = 1:9, j = 1:15])]
 
-    ŷ = EKF.measure(xₖ)
+    ŷ = EKF.measure(::ViconMeasure, xₖ)
     q̂ = Rotations.UnitQuaternion(ŷ.q𝑤, ŷ.q𝑥, ŷ.q𝑦, ŷ.q𝑧)
     Gₖ = [(@SMatrix [i==j ? 1. : 0. for i = 1:3, j = 1:6]);
           [(@SMatrix zeros(4, 3))  Rotations.∇differential(q̂)]]
