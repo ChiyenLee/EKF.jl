@@ -1,6 +1,5 @@
-###############################################################################
-#
-###############################################################################
+"""
+"""
 struct ImuState{T} <: EKF.State{16, T}
     p𝑥::T; p𝑦::T; p𝑧::T
     q𝑤::T; q𝑥::T; q𝑦::T; q𝑧::T
@@ -9,10 +8,8 @@ struct ImuState{T} <: EKF.State{16, T}
     β𝑥::T; β𝑦::T; β𝑧::T
 end
 
-
-###############################################################################
-#
-###############################################################################
+"""
+"""
 struct ImuError{T} <: EKF.ErrorState{15, T}
     𝕕p𝑥::T; 𝕕p𝑦::T; 𝕕p𝑧::T
     𝕕q𝑥::T; 𝕕q𝑦::T; 𝕕q𝑧::T
@@ -22,32 +19,28 @@ struct ImuError{T} <: EKF.ErrorState{15, T}
 end
 
 
-###############################################################################
-#
-###############################################################################
+"""
+"""
 struct ImuInput{T} <: EKF.Input{6, T}
     v̇𝑥::T; v̇𝑦::T; v̇𝑧::T
     ω𝑥::T; ω𝑦::T; ω𝑧::T
 end
 
 
-###############################################################################
-#
-###############################################################################
+"""
+"""
 struct ViconMeasure{T} <: EKF.Measurement{7, T}
     p𝑥::T; p𝑦::T; p𝑧::T
     q𝑤::T; q𝑥::T; q𝑦::T; q𝑧::T
 end
 
 
-###############################################################################
-#
-###############################################################################
+"""
+"""
 struct ViconError{T} <: EKF.ErrorMeasurement{6, T}
     𝕕p𝑥::T; 𝕕p𝑦::T; 𝕕p𝑧::T
     𝕕q𝑥::T; 𝕕q𝑦::T; 𝕕q𝑧::T
 end
-
 
 function getComponents(x::ImuState)
     p = SA[x.p𝑥, x.p𝑦, x.p𝑧]
@@ -174,12 +167,12 @@ function EKF.error_process_jacobian(xₖ::ImuState, uₖ::ImuInput, dt::Float64)
     return Jₖ₊₁' * A * Jₖ
 end
 
-function EKF.measure(::ViconMeasure, x::ImuState)::ViconMeasure
+function EKF.measure(::Type{<:ViconMeasure}, x::ImuState)::ViconMeasure
     return ViconMeasure(x.p𝑥, x.p𝑦, x.p𝑧, x.q𝑤, x.q𝑥, x.q𝑦, x.q𝑧)
 end
 
-function EKF.error_measure_jacobian(::ViconMeasure, xₖ::ImuState)::SMatrix{length(ViconError), length(ImuError), Float64}
-    A = ForwardDiff.jacobian(st->EKF.measure(::ViconMeasure, ImuState(st)), SVector(xₖ))
+function EKF.error_measure_jacobian(::Type{<:ViconMeasure}, xₖ::ImuState)::SMatrix{length(ViconError), length(ImuError), Float64}
+    A = ForwardDiff.jacobian(st->EKF.measure(ViconMeasure, ImuState(st)), SVector(xₖ))
 
     qₖ = Rotations.UnitQuaternion(xₖ.q𝑤, xₖ.q𝑥, xₖ.q𝑦, xₖ.q𝑧)
 
@@ -187,7 +180,7 @@ function EKF.error_measure_jacobian(::ViconMeasure, xₖ::ImuState)::SMatrix{len
           [(@SMatrix zeros(4, 3))  Rotations.∇differential(qₖ)  (@SMatrix zeros(4, 9))];
           (@SMatrix [i+6==j ? 1. : 0. for i = 1:9, j = 1:15])]
 
-    ŷ = EKF.measure(::ViconMeasure, xₖ)
+    ŷ = EKF.measure(ViconMeasure, xₖ)
     q̂ = Rotations.UnitQuaternion(ŷ.q𝑤, ŷ.q𝑥, ŷ.q𝑦, ŷ.q𝑧)
     Gₖ = [(@SMatrix [i==j ? 1. : 0. for i = 1:3, j = 1:6]);
           [(@SMatrix zeros(4, 3))  Rotations.∇differential(q̂)]]
