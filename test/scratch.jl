@@ -1,60 +1,26 @@
 using Revise
 import EKF
+import EKF.CommonSystems as ComSys
 using StaticArrays
-using Rotations
-using Test
-using ForwardDiff
-using LinearAlgebra
 using BenchmarkTools
-
-struct OriVel{T} <: EKF.State{7, T}
-    q𝑤::T; q𝑥::T; q𝑦::T; q𝑧::T
-    ω𝑥::T; ω𝑦::T; ω𝑧::T
-end
-struct OriVelErr{T} <: EKF.ErrorState{6, T}
-    𝕕q𝑥::T; 𝕕q𝑦::T; 𝕕q𝑧::T
-    𝕕ω𝑥::T; 𝕕ω𝑦::T; 𝕕ω𝑧::T
-end
-struct Tor{T} <: EKF.Input{3, T}
-    τ𝑥::T; τ𝑦::T; τ𝑧::T
-end
-struct Ori{T} <: EKF.Measurement{4, T}
-    q𝑤::T; q𝑥::T; q𝑦::T; q𝑧::T
-end
-struct OriErr{T} <: EKF.ErrorMeasurement{3, T}
-    𝕕q𝑥::T; 𝕕q𝑦::T; 𝕕q𝑧::T
-end
-
+using Test
 
 dt = .1
-state = OriVel(1., 0., 0., 0., .1, .1, .2)
-state_err = OriVelErr(.1, 0., 0., .1, .1, .2)
-input = Tor(0.5, 0., 0.)
-meas = Ori(1., 0., 0., 0.)
-meas_cov = @SMatrix [i==j ? 1. : 0. for i = 1:3, j = 1:3]
-obs = EKF.Observation(meas, meas_cov)
+state = ComSys.ImuState(zeros(3)..., [1.,0,0,0]..., zeros(9)...)
+input = ComSys.ImuInput(zeros(6))
+meas = ComSys.ViconMeasure(zeros(3)..., [1.,0,0,0]...)
+est_cov = @MMatrix [i==j ? 1.5 : 0. for i = 1:15, j = 1:15]
+process_cov = @MMatrix [i==j ? .3 : 0. for i = 1:15, j = 1:15]
 
-@btime begin
-    $meas = Ori(sqrt(.5), 0., sqrt(.5), 0.)
-    $meas_cov = @SMatrix [i==j ? 1. : 0. for i = 1:3, j = 1:3]
+ekf = EKF.ErrorStateFilter{ComSys.ImuState, ComSys.ImuError, ComSys.ImuInput}(state, est_cov, process_cov)
 
-    EKF.Observation($meas, $meas_cov)
+meas_cov = @SMatrix [i==j ? 1. : 0. for i = 1:6, j = 1:6]
+oriObs = EKF.Observation(meas, meas_cov)
+
+b = @benchmark begin
+    EKF.prediction!($ekf, $input, $dt)
+    EKF.update!($ekf, $oriObs)
 end
-
-# b = @benchmark EKF.getMeasurement($obs)
-
-# b = @benchmark EKF.getMeasurement($obs)
-# @test maximum(b.gctimes) == 0  # no garbage collection
-# @test b.memory == 0            # no dynamic memory allocations
-# b = @benchmark EKF.getCovariance($obs)
-# @test maximum(b.gctimes) == 0  # no garbage collection
-# @test b.memory == 0            # no dynamic memory allocations
-
-
-# b = @benchmark EKF.setMeasurement!($obs, $meas)
-# @test maximum(b.gctimes) == 0  # no garbage collection
-# @test b.memory == 0            # no dynamic memory allocations
-# b = @benchmark EKF.setCovariance!($obs, $meas_cov)
-# @test maximum(b.gctimes) == 0  # no garbage collection
-# @test b.memory == 0            # no dynamic memory allocations
-
+@test maximum(b.gctimes) == 0  # no garbage collection
+@test b.memory == 0            # no dynamic memory allocations
+display(b)
