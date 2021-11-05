@@ -1,39 +1,52 @@
+using Revise
 import EKF
-import EKF.CommonSystems as comSys
-
-import Rotations
-import LinearAlgebra: I
+using StaticArrays
+using Rotations
+using Test
+using ForwardDiff
+using LinearAlgebra
 using BenchmarkTools
-import ForwardDiff
+
+struct OriVel{T} <: EKF.State{7, T}
+    q𝑤::T; q𝑥::T; q𝑦::T; q𝑧::T
+    ω𝑥::T; ω𝑦::T; ω𝑧::T
+end
+struct OriVelErr{T} <: EKF.ErrorState{6, T}
+    𝕕q𝑥::T; 𝕕q𝑦::T; 𝕕q𝑧::T
+    𝕕ω𝑥::T; 𝕕ω𝑦::T; 𝕕ω𝑧::T
+end
+struct Tor{T} <: EKF.Input{3, T}
+    τ𝑥::T; τ𝑦::T; τ𝑧::T
+end
+struct Ori{T} <: EKF.Measurement{4, T}
+    q𝑤::T; q𝑥::T; q𝑦::T; q𝑧::T
+end
+struct OriErr{T} <: EKF.ErrorMeasurement{3, T}
+    𝕕q𝑥::T; 𝕕q𝑦::T; 𝕕q𝑧::T
+end
+
 
 # %%
-dt = 0.1
-est_state = comSys.ImuState(rand(3)..., Rotations.params(rand(Rotations.UnitQuaternion))..., rand(9)...)
-input = comSys.ImuInput(rand(6)...)
-measurement = comSys.ViconMeasure(rand(3)..., Rotations.params(rand(Rotations.UnitQuaternion))...)
+dt = .1
+state = OriVel(1., 0., 0., 0., .1, .1, .2)
+state_err = OriVelErr(.1, 0., 0., .1, .1, .2)
+input = Tor(0.5, 0., 0.)
+meas = Ori(1., 0., 0., 0.)
+meas_cov = @SMatrix [i==j ? 1. : 0. for i = 1:3, j = 1:3]
+obs = EKF.Observation(meas, meas_cov)
 
-est_cov = Matrix(2.2 * I(length(comSys.ImuError)))
-process_cov = Matrix(0.5 * I(length(comSys.ImuError)))
-measure_cov = Matrix(0.005 * I(length(comSys.ViconError)))
+b = @benchmark EKF.getMeasurement($obs)
+@test maximum(b.gctimes) == 0  # no garbage collection
+@test b.memory == 0            # no dynamic memory allocations
+b = @benchmark EKF.getCovariance($obs)
+@test maximum(b.gctimes) == 0  # no garbage collection
+@test b.memory == 0            # no dynamic memory allocations
 
-ekf = EKF.ErrorStateFilter{comSys.ImuState, comSys.ImuError, comSys.ImuInput,
-                           comSys.ViconMeasure, comSys.ViconError}(est_state,
-                                                                   est_cov,
-                                                                   process_cov,
-                                                                   measure_cov)
 
-# %%
-b = @benchmark EKF.process($est_state, $input, $dt)
-display(b)
+b = @benchmark EKF.setMeasurement!($obs, $meas)
+@test maximum(b.gctimes) == 0  # no garbage collection
+@test b.memory == 0            # no dynamic memory allocations
+b = @benchmark EKF.setCovariance!($obs, $meas_cov)
+@test maximum(b.gctimes) == 0  # no garbage collection
+@test b.memory == 0            # no dynamic memory allocations
 
-# %%
-b = @benchmark EKF.error_process_jacobian($est_state, $input, $dt)
-display(b)
-
-# %%
-b = @benchmark EKF.prediction!($ekf, $input, $dt)
-display(b)
-
-# %%
-b = @benchmark EKF.update!($ekf, $measurement)
-display(b)
