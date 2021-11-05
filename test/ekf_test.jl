@@ -1,3 +1,4 @@
+using Revise
 import EKF
 using StaticArrays
 using Rotations
@@ -41,21 +42,17 @@ using BenchmarkTools
         meas_cov2 = @SMatrix [i==j ? .5 : 0. for i = 1:3, j = 1:3]
         oriObs = EKF.Observation(meas, meas_cov)
 
+        b = @benchmark begin
+            $meas = Ori(sqrt(.5), 0., sqrt(.5), 0.)
+            $meas_cov = @SMatrix [i==j ? 1. : 0. for i = 1:3, j = 1:3]
+
+            EKF.Observation($meas, $meas_cov)
+        end
+        @test maximum(b.gctimes) == 0  # no garbage collection
+        @test b.memory == 0            # no dynamic memory allocations
+
         @test EKF.getMeasurement(oriObs) == meas
         @test EKF.getCovariance(oriObs) == meas_cov
-
-        EKF.setMeasurement!(oriObs, meas2)
-        EKF.setCovariance!(oriObs, meas_cov2)
-
-        @test EKF.getMeasurement(oriObs) == meas2
-        @test EKF.getCovariance(oriObs) == meas_cov2
-
-        b = @benchmark EKF.setMeasurement!($oriObs, $meas2)
-        @test maximum(b.gctimes) == 0  # no garbage collection
-        @test b.memory == 0            # no dynamic memory allocations
-        b = @benchmark EKF.setCovariance!($oriObs, $meas_cov2)
-        @test maximum(b.gctimes) == 0  # no garbage collection
-        @test b.memory == 0            # no dynamic memory allocations
     end
 
 
@@ -182,18 +179,12 @@ using BenchmarkTools
     	meas_cov = @SMatrix [i==j ? 1. : 0. for i = 1:3, j = 1:3]
     	oriObs = EKF.Observation(meas, meas_cov)
 
-    	EKF.prediction!(ekf, input, dt)
-    	EKF.update!(ekf, oriObs)
+        b = @benchmark EKF.prediction!($ekf, $input, $dt)
+        @test maximum(b.gctimes) == 0  # no garbage collection
+        @test b.memory == 0            # no dynamic memory allocations
 
-    	meas2 = Ori(1., 0., 0., 0.)
-    	meas_cov2 = @SMatrix [i==j ? 1. : 0. for i = 1:3, j = 1:3]
-
-    	b = @benchmark begin
-    		EKF.setMeasurement!($oriObs, $meas2)
-    		EKF.setCovariance!($oriObs, $meas_cov2)
-
-    		EKF.prediction!($ekf, $input, $dt)
-    		EKF.update!($ekf, $oriObs)
-    	end
+        b = @benchmark EKF.update!($ekf, $oriObs)
+        @test maximum(b.gctimes) == 0  # no garbage collection
+        @test b.memory == 0            # no dynamic memory allocations
     end
 end
