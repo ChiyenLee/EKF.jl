@@ -169,8 +169,8 @@ using BenchmarkTools
 
     @testset "Filter Functions" begin
     	state1 = OriVel(1., 0., 0., 0., .1, .1, .2)
-    	est_cov = @MMatrix [i==j ? 1.5 : 0. for i = 1:6, j = 1:6]
-    	process_cov = @MMatrix [i==j ? .3 : 0. for i = 1:6, j = 1:6]
+    	est_cov = @SMatrix [i==j ? 1.5 : 0. for i = 1:6, j = 1:6]
+    	process_cov = @SMatrix [i==j ? .3 : 0. for i = 1:6, j = 1:6]
 
     	ekf = EKF.ErrorStateFilter{OriVel, OriVelErr, Tor}(state1, est_cov, process_cov)
 

@@ -9,8 +9,8 @@ dt = .1
 state = ComSys.ImuState(zeros(3)..., [1.,0,0,0]..., zeros(9)...)
 input = ComSys.ImuInput(zeros(6))
 meas = ComSys.ViconMeasure(zeros(3)..., [1.,0,0,0]...)
-est_cov = @MMatrix [i==j ? 1.5 : 0. for i = 1:15, j = 1:15]
-process_cov = @MMatrix [i==j ? .3 : 0. for i = 1:15, j = 1:15]
+est_cov = @SMatrix [i==j ? 1.5 : 0. for i = 1:15, j = 1:15]
+process_cov = @SMatrix [i==j ? .3 : 0. for i = 1:15, j = 1:15]
 
 ekf = EKF.ErrorStateFilter{ComSys.ImuState, ComSys.ImuError, ComSys.ImuInput}(state, est_cov, process_cov)
 

@@ -1,8 +1,8 @@
-struct ErrorStateFilter{S<:State, ES<:ErrorState, IN<:Input,
+mutable struct ErrorStateFilter{S<:State, ES<:ErrorState, IN<:Input,
                         Nₛ, Nₑₛ, Nᵢₙ, Lₑₛ, T}
-    est_state::MVector{Nₛ, T}
-    est_cov::MMatrix{Nₑₛ, Nₑₛ, T,  Lₑₛ}
-    process_cov::MMatrix{Nₑₛ, Nₑₛ, T,  Lₑₛ}  # Dynamics Noise Covariance
+    est_state::SVector{Nₛ, T}
+    est_cov::SMatrix{Nₑₛ, Nₑₛ, T,  Lₑₛ}
+    process_cov::SMatrix{Nₑₛ, Nₑₛ, T,  Lₑₛ}  # Dynamics Noise Covariance
 
     function ErrorStateFilter{S, ES, IN}(est_state::AbstractVector{T},
                                          est_cov::AbstractMatrix{T},
@@ -11,28 +11,34 @@ struct ErrorStateFilter{S<:State, ES<:ErrorState, IN<:Input,
         Nₛ, Nₑₛ, Nᵢₙ = length.([S, ES, IN])
         Lₑₛ = Nₑₛ * Nₑₛ
 
-        est_state = MVector(est_state)
-        est_cov = MMatrix{Nₑₛ, Nₑₛ, T, Lₑₛ}(est_cov)
-        process_cov = MMatrix{Nₑₛ, Nₑₛ, T, Lₑₛ}(process_cov)
+        est_state = SVector(est_state)
+        est_cov = SMatrix{Nₑₛ, Nₑₛ, T, Lₑₛ}(est_cov)
+        process_cov = SMatrix{Nₑₛ, Nₑₛ, T, Lₑₛ}(process_cov)
 
         return new{S, ES, IN, Nₛ, Nₑₛ, Nᵢₙ, Lₑₛ, T}(est_state, est_cov, process_cov)
     end
+end
+
+function updateProcessCov!(ekf::ErrorStateFilter{S, ES, IN, Nₛ, Nₑₛ, Nᵢₙ, Lₑₛ, T},
+                           process_cov::SMatrix{Nₑₛ, Nₑₛ, T,  Lₑₛ},
+                           ) where {S<:State, ES<:ErrorState, IN<:Input, Nₛ, Nₑₛ, Nᵢₙ, T,  Lₑₛ}
+    ekf.process_cov = process_cov
 end
 
 function prediction!(ekf::ErrorStateFilter{S, ES, IN},
                      uₖ::IN,
                      dt::Float64,
                      )::Nothing where {S<:State, ES<:ErrorState, IN<:Input}
-    W = SMatrix(ekf.process_cov)
-    Pₖₗₖ = SMatrix(ekf.est_cov)
     xₖₗₖ = S(ekf.est_state)
+    Pₖₗₖ = ekf.est_cov
+    W = ekf.process_cov
 
     xₖ₊₁ₗₖ = process(xₖₗₖ, uₖ, dt)
     Aₖ = error_process_jacobian(xₖₗₖ, uₖ, dt)
     Pₖ₊₁ₗₖ = Aₖ * Pₖₗₖ * (Aₖ)' + W
 
-    ekf.est_state .= xₖ₊₁ₗₖ
-    ekf.est_cov .= Pₖ₊₁ₗₖ
+    ekf.est_state = xₖ₊₁ₗₖ
+    ekf.est_cov = Pₖ₊₁ₗₖ
 
     return nothing
 end
@@ -61,8 +67,8 @@ end
 function update!(ekf::ErrorStateFilter{S, ES, IN},
                  oₖ::Observation,
                  )::Nothing where {S<:State, ES<:ErrorState, IN<:Input}
-    Pₖ₊₁ₗₖ = SMatrix(ekf.est_cov)
     xₖ₊₁ₗₖ = S(ekf.est_state)
+    Pₖ₊₁ₗₖ = ekf.est_cov
 
     zₖ₊₁, Cₖ₊₁, Lₖ₊₁ = innovation(ekf, xₖ₊₁ₗₖ, Pₖ₊₁ₗₖ, oₖ)
 
@@ -70,8 +76,8 @@ function update!(ekf::ErrorStateFilter{S, ES, IN},
     xₖ₊₁ₗₖ₊₁ = state_composition(xₖ₊₁ₗₖ, ES(Lₖ₊₁ * zₖ₊₁))
     Pₖ₊₁ₗₖ₊₁ = Pₖ₊₁ₗₖ - Lₖ₊₁ * Cₖ₊₁ * Pₖ₊₁ₗₖ
 
-    ekf.est_state .= xₖ₊₁ₗₖ₊₁
-    ekf.est_cov .= Pₖ₊₁ₗₖ₊₁
+    ekf.est_state = xₖ₊₁ₗₖ₊₁
+    ekf.est_cov = Pₖ₊₁ₗₖ₊₁
 
     return nothing
 end
