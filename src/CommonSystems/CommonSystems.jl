@@ -4,5 +4,6 @@ module CommonSystems
     import Rotations
     using StaticArrays
 
-    include("imu_vicon.jl")
+    # include("imu_vicon.jl")
+    include("imu_dynamics_discrete.jl")
 end
