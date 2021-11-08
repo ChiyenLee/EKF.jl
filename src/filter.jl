@@ -29,7 +29,7 @@ function prediction!(ekf::ErrorStateFilter{S, ES, IN, Nₛ, Nₑₛ, Nᵢₙ, L�
                      uₖ::IN,
                      dt::T,
                      )::Nothing where {S<:State, ES<:ErrorState, IN<:Input, Nₛ, Nₑₛ, Nᵢₙ, Lₑₛ, T}
-    xₖₗₖ = S(ekf.est_state)
+    xₖₗₖ = S(SVector{Nₛ,T}(ekf.est_state))
     Pₖₗₖ = ekf.est_cov
     W = ekf.process_cov
 
@@ -67,13 +67,13 @@ end
 function update!(ekf::ErrorStateFilter{S, ES, IN, Nₛ, Nₑₛ, Nᵢₙ, Lₑₛ, T},
                  oₖ::Observation{M, Nₘ, Nₑₘ, T},
                  )::Nothing where {S<:State, ES<:ErrorState, IN<:Input, Nₛ, Nₑₛ, Nᵢₙ, Lₑₛ, M<:Measurement, Nₘ, Nₑₘ, T,}
-    xₖ₊₁ₗₖ = S(ekf.est_state)
+    xₖ₊₁ₗₖ = S(SVector{Nₛ,T}(ekf.est_state))
     Pₖ₊₁ₗₖ = ekf.est_cov
 
     zₖ₊₁, Cₖ₊₁, Lₖ₊₁ = innovation(ekf, xₖ₊₁ₗₖ, Pₖ₊₁ₗₖ, oₖ)
 
     # Update
-    xₖ₊₁ₗₖ₊₁ = state_composition(xₖ₊₁ₗₖ, ES(Lₖ₊₁ * zₖ₊₁))
+    xₖ₊₁ₗₖ₊₁ = state_composition(xₖ₊₁ₗₖ, ES(SVector{Nₑₛ,T}(Lₖ₊₁ * zₖ₊₁)))
     Pₖ₊₁ₗₖ₊₁ = Pₖ₊₁ₗₖ - Lₖ₊₁ * Cₖ₊₁ * Pₖ₊₁ₗₖ
 
     ekf.est_state = xₖ₊₁ₗₖ₊₁

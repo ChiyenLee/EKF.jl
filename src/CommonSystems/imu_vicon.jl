@@ -39,6 +39,21 @@ struct ViconError{T} <: EKF.ErrorMeasurement{6, T}
     𝕕q𝑥::T; 𝕕q𝑦::T; 𝕕q𝑧::T
 end
 
+function getComponents(x::ImuState)
+    p = SA[x.p𝑥, x.p𝑦, x.p𝑧]
+    q = Rotations.UnitQuaternion(x.q𝑤, x.q𝑥, x.q𝑦, x.q𝑧)
+    v = SA[x.v𝑥, x.v𝑦, x.v𝑧]
+    α = SA[x.α𝑥, x.α𝑦, x.α𝑧]
+    β = SA[x.β𝑥, x.β𝑦, x.β𝑧]
+    return p, q, v, α, β
+end
+
+function getComponents(u::ImuInput)
+    v̇ = SA[u.v̇𝑥, u.v̇𝑦, u.v̇𝑧]
+    ω = SA[u.ω𝑥, u.ω𝑦, u.ω𝑧]
+    return v̇, ω
+end
+
 # Add an error state to another state to create a new state
 function EKF.state_composition(x::ImuState{T}, dx::ImuError{T})::ImuState{T} where T
     p = SA[x.p𝑥, x.p𝑦, x.p𝑧]
