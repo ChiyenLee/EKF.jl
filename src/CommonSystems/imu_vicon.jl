@@ -18,14 +18,12 @@ struct ImuError{T} <: EKF.ErrorState{15, T}
     𝕕β𝑥::T; 𝕕β𝑦::T; 𝕕β𝑧::T
 end
 
-
 """
 """
 struct ImuInput{T} <: EKF.Input{6, T}
     v̇𝑥::T; v̇𝑦::T; v̇𝑧::T
     ω𝑥::T; ω𝑦::T; ω𝑧::T
 end
-
 
 """
 """
@@ -34,7 +32,6 @@ struct ViconMeasure{T} <: EKF.Measurement{7, T}
     q𝑤::T; q𝑥::T; q𝑦::T; q𝑧::T
 end
 
-
 """
 """
 struct ViconError{T} <: EKF.ErrorMeasurement{6, T}
@@ -42,25 +39,13 @@ struct ViconError{T} <: EKF.ErrorMeasurement{6, T}
     𝕕q𝑥::T; 𝕕q𝑦::T; 𝕕q𝑧::T
 end
 
-function getComponents(x::ImuState)
+# Add an error state to another state to create a new state
+function EKF.state_composition(x::ImuState{T}, dx::ImuError{T})::ImuState{T} where T
     p = SA[x.p𝑥, x.p𝑦, x.p𝑧]
     q = Rotations.UnitQuaternion(x.q𝑤, x.q𝑥, x.q𝑦, x.q𝑧)
     v = SA[x.v𝑥, x.v𝑦, x.v𝑧]
     α = SA[x.α𝑥, x.α𝑦, x.α𝑧]
     β = SA[x.β𝑥, x.β𝑦, x.β𝑧]
-    return p, q, v, α, β
-end
-
-
-function getComponents(u::ImuInput)
-    v̇ = SA[u.v̇𝑥, u.v̇𝑦, u.v̇𝑧]
-    ω = SA[u.ω𝑥, u.ω𝑦, u.ω𝑧]
-    return v̇, ω
-end
-
-# Add an error state to another state to create a new state
-function EKF.state_composition(x::ImuState, dx::ImuError)::ImuState
-    p, q, v, α, β = getComponents(x)
 
     𝕕p = SA[dx.𝕕p𝑥, dx.𝕕p𝑦, dx.𝕕p𝑧]
     𝕕q = Rotations.RotationError(SA[dx.𝕕q𝑥, dx.𝕕q𝑦, dx.𝕕q𝑧], Rotations.CayleyMap())
@@ -69,27 +54,27 @@ function EKF.state_composition(x::ImuState, dx::ImuError)::ImuState
     𝕕β = SA[dx.𝕕β𝑥, dx.𝕕β𝑦, dx.𝕕β𝑧]
 
     pos = p + 𝕕p
-    ori = Rotations.add_error(q, 𝕕q)
+    ori = Rotations.params(Rotations.add_error(q, 𝕕q))
     vel = v + 𝕕v
     acc_bias = α + 𝕕α
     ori_bias = β + 𝕕β
 
-    x = ImuState(pos..., Rotations.params(ori)..., vel..., acc_bias..., ori_bias...)
+    x = ImuState{T}(pos..., ori..., vel..., acc_bias..., ori_bias...)
     return x
 end
 
 # # Compute the error state between two states
-function EKF.measurement_error(m2::ViconMeasure, m1::ViconMeasure)::ViconError
+function EKF.measurement_error(m2::ViconMeasure{T}, m1::ViconMeasure{T})::ViconError{T} where T
     p₁ = SA[m1.p𝑥, m1.p𝑦, m1.p𝑧]
-    q₁ = Rotations.UnitQuaternion(m1.q𝑤, m1.q𝑥, m1.q𝑦, m1.q𝑧)
+    q₁ = Rotations.UnitQuaternion{T}(m1.q𝑤, m1.q𝑥, m1.q𝑦, m1.q𝑧)
 
     p₂ = SA[m2.p𝑥, m2.p𝑦, m2.p𝑧]
-    q₂ = Rotations.UnitQuaternion(m2.q𝑤, m2.q𝑥, m2.q𝑦, m2.q𝑧)
+    q₂ = Rotations.UnitQuaternion{T}(m2.q𝑤, m2.q𝑥, m2.q𝑦, m2.q𝑧)
 
     pos_er = p₂ - p₁
     ori_er = Rotations.rotation_error(q₂, q₁, Rotations.CayleyMap())
 
-    dx = ViconError(pos_er..., ori_er...)
+    dx = ViconError{T}(pos_er..., ori_er...)
     return dx
 end
 
@@ -101,8 +86,14 @@ function dynamics(x::ImuState, u::ImuInput)::SVector{16}
 	g = SA[0, 0, 9.81]
 
     # Get various compoents
-    p, q, v, α, β = getComponents(x)
-    v̇ᵢ, ωᵢ = getComponents(u)
+    p = SA[x.p𝑥, x.p𝑦, x.p𝑧]
+    q = Rotations.UnitQuaternion(x.q𝑤, x.q𝑥, x.q𝑦, x.q𝑧)
+    v = SA[x.v𝑥, x.v𝑦, x.v𝑧]
+    α = SA[x.α𝑥, x.α𝑦, x.α𝑧]
+    β = SA[x.β𝑥, x.β𝑦, x.β𝑧]
+
+    v̇ᵢ = SA[u.v̇𝑥, u.v̇𝑦, u.v̇𝑧]
+    ωᵢ = SA[u.ω𝑥, u.ω𝑦, u.ω𝑧]
 
     # Body velocity writen in inertia cooridantes
     ṗ = q * v
@@ -124,13 +115,14 @@ end
 """
 4th Order Runga Kutta Method for integrating the dynamics function of the quadrotor.
 """
-function EKF.process(x::ImuState, u::ImuInput, dt::Float64)::ImuState
+function EKF.process(x::ImuState, u::ImuInput, dt::T)::ImuState where T
     k1 = dynamics(x, u)
-    k2 = dynamics(x + 0.5 * dt * k1, u)
-    k3 = dynamics(x + 0.5 * dt * k2, u)
-    k4 = dynamics(x + dt * k3, u)
+    k2 = dynamics(ImuState(x + 0.5 * dt * k1), u)
+    k3 = dynamics(ImuState(x + 0.5 * dt * k2), u)
+    k4 = dynamics(ImuState(x + dt * k3), u)
 
     tmp = ImuState(x + (dt/6.0) * (k1 + 2*k2 + 2*k3 + k4))
+    # Renormalize quaternion
     q𝑤, q𝑥, q𝑦, q𝑧 = Rotations.params(Rotations.UnitQuaternion(tmp.q𝑤, tmp.q𝑥, tmp.q𝑦, tmp.q𝑧))
     ret = ImuState(tmp.p𝑥, tmp.p𝑦, tmp.p𝑧,
                    q𝑤, q𝑥, q𝑦, q𝑧,
@@ -140,7 +132,7 @@ function EKF.process(x::ImuState, u::ImuInput, dt::Float64)::ImuState
     return ret
 end
 
-function EKF.error_process_jacobian(xₖ::ImuState, uₖ::ImuInput, dt::Float64)::SMatrix{length(ImuError), length(ImuError), Float64}
+function EKF.error_process_jacobian(xₖ::ImuState, uₖ::ImuInput, dt::T)::SMatrix{15, 15} where T
     A = ForwardDiff.jacobian(st->EKF.process(ImuState(st), uₖ, dt), SVector(xₖ))
     # Get various compoents
     qₖ = Rotations.UnitQuaternion(xₖ.q𝑤, xₖ.q𝑥, xₖ.q𝑦, xₖ.q𝑧)
@@ -163,7 +155,7 @@ function EKF.measure(::Type{<:ViconMeasure}, x::ImuState)::ViconMeasure
     return ViconMeasure(x.p𝑥, x.p𝑦, x.p𝑧, x.q𝑤, x.q𝑥, x.q𝑦, x.q𝑧)
 end
 
-function EKF.error_measure_jacobian(::Type{<:ViconMeasure}, xₖ::ImuState)::SMatrix{length(ViconError), length(ImuError), Float64}
+function EKF.error_measure_jacobian(::Type{<:ViconMeasure}, xₖ::ImuState)::SMatrix{6, 15}
     A = ForwardDiff.jacobian(st->EKF.measure(ViconMeasure, ImuState(st)), SVector(xₖ))
 
     qₖ = Rotations.UnitQuaternion(xₖ.q𝑤, xₖ.q𝑥, xₖ.q𝑦, xₖ.q𝑧)
