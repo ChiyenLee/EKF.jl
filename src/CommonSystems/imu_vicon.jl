@@ -60,15 +60,10 @@ end
 
 # Add an error state to another state to create a new state
 function EKF.state_composition(x::ImuState, dx::ImuError)::ImuState
-    p = SA[x.p𝑥, x.p𝑦, x.p𝑧]
-    q = Rotations.UnitQuaternion(x.q𝑤, x.q𝑥, x.q𝑦, x.q𝑧)
-    v = SA[x.v𝑥, x.v𝑦, x.v𝑧]
-    α = SA[x.α𝑥, x.α𝑦, x.α𝑧]
-    β = SA[x.β𝑥, x.β𝑦, x.β𝑧]
+    p, q, v, α, β = getComponents(x)
 
     𝕕p = SA[dx.𝕕p𝑥, dx.𝕕p𝑦, dx.𝕕p𝑧]
-    tmp = SA[dx.𝕕q𝑥, dx.𝕕q𝑦, dx.𝕕q𝑧]
-    𝕕q = Rotations.RotationError(tmp, Rotations.CayleyMap())
+    𝕕q = Rotations.RotationError(SA[dx.𝕕q𝑥, dx.𝕕q𝑦, dx.𝕕q𝑧], Rotations.CayleyMap())
     𝕕v = SA[dx.𝕕v𝑥, dx.𝕕v𝑦, dx.𝕕v𝑧]
     𝕕α = SA[dx.𝕕α𝑥, dx.𝕕α𝑦, dx.𝕕α𝑧]
     𝕕β = SA[dx.𝕕β𝑥, dx.𝕕β𝑦, dx.𝕕β𝑧]
@@ -106,14 +101,8 @@ function dynamics(x::ImuState, u::ImuInput)::SVector{16}
 	g = SA[0, 0, 9.81]
 
     # Get various compoents
-    p = SA[x.p𝑥, x.p𝑦, x.p𝑧]
-    q = Rotations.UnitQuaternion(x.q𝑤, x.q𝑥, x.q𝑦, x.q𝑧)
-    v = SA[x.v𝑥, x.v𝑦, x.v𝑧]
-    α = SA[x.α𝑥, x.α𝑦, x.α𝑧]
-    β = SA[x.β𝑥, x.β𝑦, x.β𝑧]
-
-    v̇ᵢ = SA[u.v̇𝑥, u.v̇𝑦, u.v̇𝑧]
-    ωᵢ = SA[u.ω𝑥, u.ω𝑦, u.ω𝑧]
+    p, q, v, α, β = getComponents(x)
+    v̇ᵢ, ωᵢ = getComponents(u)
 
     # Body velocity writen in inertia cooridantes
     ṗ = q * v
@@ -132,6 +121,9 @@ function dynamics(x::ImuState, u::ImuInput)::SVector{16}
     return ret
 end
 
+"""
+4th Order Runga Kutta Method for integrating the dynamics function of the quadrotor.
+"""
 function EKF.process(x::ImuState, u::ImuInput, dt::Float64)::ImuState
     k1 = dynamics(x, u)
     k2 = dynamics(x + 0.5 * dt * k1, u)
