@@ -66,13 +66,13 @@ Useful helper function.
 ###############################################################################
 #                      Process / Process Jacobian
 ###############################################################################
-function process(state::State, input::Input, dt::Float64)
+function process(state::State{Nₛ, T}, input::Input{Nᵢ, T}, dt::T) where {Nₛ, Nᵢ, T}
     throw(
         EkfError("User must define the `process` function: `process(state::$(typeof(state)), input::$(typeof(input)), dt::Float64)`")
     )
 end
 
-function error_process_jacobian(state::State, input::Input, dt::Float64)
+function error_process_jacobian(state::State{Nₛ, T}, input::Input{Nᵢ, T}, dt::T) where {Nₛ, Nᵢ, T}
     throw(
         EkfError("User must define the `error_process_jacobian` function: `error_process_jacobian(state::$(typeof(state)), input::$(typeof(input)), dt::Float64)`")
     )
@@ -81,7 +81,7 @@ end
 ###############################################################################
 #                       Measure / Measurement Jacobian
 ###############################################################################
-function measure(meas_typ::Type{<:Measurement}, state::State) where {M}
+function measure(meas_typ::Type{<:Measurement}, state::State)
     throw(
         EkfError("User must define the `measure` function: `measure(::Type{$(meas_typ)}, state::$(typeof(state)))`")
     )

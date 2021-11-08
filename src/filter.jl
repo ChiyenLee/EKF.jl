@@ -25,11 +25,12 @@ function updateProcessCov!(ekf::ErrorStateFilter{S, ES, IN, Nₛ, Nₑₛ, Nᵢ�
     ekf.process_cov = process_cov
 end
 
-function prediction!(ekf::ErrorStateFilter{S, ES, IN},
+function prediction!(ekf::ErrorStateFilter{S, ES, IN, Nₛ, Nₑₛ, Nᵢₙ, Lₑₛ, T},
                      uₖ::IN,
-                     dt::Float64,
-                     )::Nothing where {S<:State, ES<:ErrorState, IN<:Input}
+                     dt::T,
+                     )::Nothing where {S<:State, ES<:ErrorState, IN<:Input, Nₛ, Nₑₛ, Nᵢₙ, Lₑₛ, T}
     xₖₗₖ = S(ekf.est_state)
+    return nothing
     Pₖₗₖ = ekf.est_cov
     W = ekf.process_cov
 
@@ -46,8 +47,8 @@ end
 function innovation(ekf::ErrorStateFilter{S, ES, IN, Nₛ, Nₑₛ, Nᵢₙ, Lₑₛ, T},
                     xₖ₊₁ₗₖ::S,
                     Pₖ₊₁ₗₖ::SMatrix{Nₑₛ, Nₑₛ, T, Lₑₛ},
-                    oₖ::Observation{M},
-                    ) where {S<:State, ES<:ErrorState, IN<:Input, M<:Measurement, Nₛ, Nₑₛ, Nᵢₙ, Lₑₛ, T}
+                    oₖ::Observation{M, Nₘ, Nₑₘ, T},
+                    ) where {S<:State, ES<:ErrorState, IN<:Input, Nₛ, Nₑₛ, Nᵢₙ, Lₑₛ, M<:Measurement, Nₘ, Nₑₘ, T,}
     # Relabeling
     yₖ = getMeasurement(oₖ)
     V = getCovariance(oₖ)
@@ -64,9 +65,9 @@ function innovation(ekf::ErrorStateFilter{S, ES, IN, Nₛ, Nₑₛ, Nᵢₙ, L�
     return zₖ₊₁, Cₖ₊₁, Lₖ₊₁
 end
 
-function update!(ekf::ErrorStateFilter{S, ES, IN},
-                 oₖ::Observation,
-                 )::Nothing where {S<:State, ES<:ErrorState, IN<:Input}
+function update!(ekf::ErrorStateFilter{S, ES, IN, Nₛ, Nₑₛ, Nᵢₙ, Lₑₛ, T},
+                 oₖ::Observation{M, Nₘ, Nₑₘ, T},
+                 )::Nothing where {S<:State, ES<:ErrorState, IN<:Input, Nₛ, Nₑₛ, Nᵢₙ, Lₑₛ, M<:Measurement, Nₘ, Nₑₘ, T,}
     xₖ₊₁ₗₖ = S(ekf.est_state)
     Pₖ₊₁ₗₖ = ekf.est_cov
 
@@ -83,11 +84,11 @@ function update!(ekf::ErrorStateFilter{S, ES, IN},
 end
 
 
-function estimateState!(ekf::ErrorStateFilter{S, ES, IN},
+function estimateState!(ekf::ErrorStateFilter{S, ES, IN, Nₛ, Nₑₛ, Nᵢₙ, Lₑₛ, T},
                         input::IN,
                         measurement::M,
-                        dt::Float64
-                        )::Nothing where {S<:State, ES<:ErrorState, IN<:Input, M<:Measurement}
+                        dt::T
+                        )::Nothing where {S<:State, ES<:ErrorState, IN<:Input, Nₛ, Nₑₛ, Nᵢₙ, Lₑₛ, T, M<:Measurement}
     # Relabeling
     uₖ = input
     yₖ = measurement
