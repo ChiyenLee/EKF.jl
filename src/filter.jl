@@ -1,55 +1,61 @@
-struct ErrorStateFilter{S<:State, ES<:ErrorState, IN<:Input,
-                        M<:Measurement, EM<:ErrorMeasurement,
-                        Nₛ, Nₑₛ, Nᵢ, Nₘ, Nₑₘ, Lₑₛ, Lₑₘ, T}
-    est_state::MVector{Nₛ, T}
-    est_cov::MMatrix{Nₑₛ, Nₑₛ, T,  Lₑₛ}
+mutable struct ErrorStateFilter{S<:State, ES<:ErrorState, IN<:Input,
+                        Nₛ, Nₑₛ, Nᵢₙ, Lₑₛ, T}
+    est_state::SVector{Nₛ, T}
+    est_cov::SMatrix{Nₑₛ, Nₑₛ, T,  Lₑₛ}
+    process_cov::SMatrix{Nₑₛ, Nₑₛ, T,  Lₑₛ}  # Dynamics Noise Covariance
 
-    process_cov::MMatrix{Nₑₛ, Nₑₛ, T,  Lₑₛ}  # Dynamics Noise Covariance
-    measure_cov::MMatrix{Nₑₘ, Nₑₘ, T,  Lₑₘ}  # Measurement Noise Covariance
+    function ErrorStateFilter{S, ES, IN}(est_state::AbstractVector{T},
+                                         est_cov::AbstractMatrix{T},
+                                         process_cov::AbstractMatrix{T}) where {S, ES, IN, T}
 
-    function ErrorStateFilter{S, ES, IN, M, EM}(est_state::AbstractVector, est_cov::Matrix,
-                                                process_cov::Matrix, measure_cov::Matrix
-                                                ) where {S, ES, IN, M, EM}
+        Nₛ, Nₑₛ, Nᵢₙ = length.([S, ES, IN])
+        Lₑₛ = Nₑₛ * Nₑₛ
 
-        Nₛ, Nₑₛ, Nᵢ, Nₘ, Nₑₘ = length.([S, ES, IN, M, EM])
-        Lₑₛ, Lₑₘ, T = Nₑₛ * Nₑₛ, Nₑₘ * Nₑₘ, Float64
+        est_state = SVector(est_state)
+        est_cov = SMatrix{Nₑₛ, Nₑₛ, T, Lₑₛ}(est_cov)
+        process_cov = SMatrix{Nₑₛ, Nₑₛ, T, Lₑₛ}(process_cov)
 
-        est_state = MVector(est_state)
-        est_cov = MMatrix{Nₑₛ, Nₑₛ, T, Lₑₛ}(est_cov)
-        process_cov = MMatrix{Nₑₛ, Nₑₛ, T, Lₑₛ}(process_cov)
-        measure_cov = MMatrix{Nₑₘ, Nₑₘ, T, Lₑₘ}(measure_cov)
-
-        return new{S, ES, IN, M, EM, Nₛ, Nₑₛ, Nᵢ, Nₘ, Nₑₘ, Lₑₛ, Lₑₘ, T}(est_state, est_cov, process_cov, measure_cov)
+        return new{S, ES, IN, Nₛ, Nₑₛ, Nᵢₙ, Lₑₛ, T}(est_state, est_cov, process_cov)
     end
 end
 
-function prediction!(ekf::ErrorStateFilter{S, ES, IN, M, EM}, uₖ::IN, dt::Float64
-                        )::Nothing where {S<:State, ES<:ErrorState, IN<:Input,
-                                        M<:Measurement, EM<:ErrorMeasurement}
-    W = SMatrix(ekf.process_cov)
-    Pₖₗₖ = SMatrix(ekf.est_cov)
+function updateProcessCov!(ekf::ErrorStateFilter{S, ES, IN, Nₛ, Nₑₛ, Nᵢₙ, Lₑₛ, T},
+                           process_cov::SMatrix{Nₑₛ, Nₑₛ, T,  Lₑₛ},
+                           ) where {S<:State, ES<:ErrorState, IN<:Input, Nₛ, Nₑₛ, Nᵢₙ, T,  Lₑₛ}
+    ekf.process_cov = process_cov
+end
+
+function prediction!(ekf::ErrorStateFilter{S, ES, IN},
+                     uₖ::IN,
+                     dt::Float64,
+                     )::Nothing where {S<:State, ES<:ErrorState, IN<:Input}
     xₖₗₖ = S(ekf.est_state)
+    Pₖₗₖ = ekf.est_cov
+    W = ekf.process_cov
 
     xₖ₊₁ₗₖ = process(xₖₗₖ, uₖ, dt)
     Aₖ = error_process_jacobian(xₖₗₖ, uₖ, dt)
     Pₖ₊₁ₗₖ = Aₖ * Pₖₗₖ * (Aₖ)' + W
 
-    ekf.est_state .= xₖ₊₁ₗₖ
-    ekf.est_cov .= Pₖ₊₁ₗₖ
+    ekf.est_state = xₖ₊₁ₗₖ
+    ekf.est_cov = Pₖ₊₁ₗₖ
 
     return nothing
 end
 
-function innovation(ekf::ErrorStateFilter{S, ES, IN, M, EM},
-                    xₖ₊₁ₗₖ::S, Pₖ₊₁ₗₖ::SMatrix, yₖ::M
-                    ) where {S<:State, ES<:ErrorState, IN<:Input,
-                                M<:Measurement, EM<:ErrorMeasurement}
+function innovation(ekf::ErrorStateFilter{S, ES, IN, Nₛ, Nₑₛ, Nᵢₙ, Lₑₛ, T},
+                    xₖ₊₁ₗₖ::S,
+                    Pₖ₊₁ₗₖ::SMatrix{Nₑₛ, Nₑₛ, T, Lₑₛ},
+                    oₖ::Observation{M},
+                    ) where {S<:State, ES<:ErrorState, IN<:Input, M<:Measurement, Nₛ, Nₑₛ, Nᵢₙ, Lₑₛ, T}
     # Relabeling
-    V = SMatrix(ekf.measure_cov)
+    yₖ = getMeasurement(oₖ)
+    V = getCovariance(oₖ)
 
-    # Innovation
-    zₖ₊₁ = measurement_error(yₖ, measure(xₖ₊₁ₗₖ))
-    Cₖ₊₁ = error_measure_jacobian(xₖ₊₁ₗₖ)
+    # # Innovation
+    zₖ₊₁ = measurement_error(yₖ, measure(M, xₖ₊₁ₗₖ))
+    Cₖ₊₁ = error_measure_jacobian(M, xₖ₊₁ₗₖ)
+
     Sₖ₊₁ = Cₖ₊₁ * Pₖ₊₁ₗₖ * (Cₖ₊₁)' + V
 
     # Kalman Gain
@@ -58,29 +64,30 @@ function innovation(ekf::ErrorStateFilter{S, ES, IN, M, EM},
     return zₖ₊₁, Cₖ₊₁, Lₖ₊₁
 end
 
-function update!(ekf::ErrorStateFilter{S, ES, IN, M, EM}, yₖ::M
-                    )::Nothing where {S<:State, ES<:ErrorState, IN<:Input,
-                                    M<:Measurement, EM<:ErrorMeasurement}
-    Pₖ₊₁ₗₖ = SMatrix(ekf.est_cov)
+function update!(ekf::ErrorStateFilter{S, ES, IN},
+                 oₖ::Observation,
+                 )::Nothing where {S<:State, ES<:ErrorState, IN<:Input}
     xₖ₊₁ₗₖ = S(ekf.est_state)
+    Pₖ₊₁ₗₖ = ekf.est_cov
 
-    zₖ₊₁, Cₖ₊₁, Lₖ₊₁= innovation(ekf, xₖ₊₁ₗₖ, Pₖ₊₁ₗₖ, yₖ)
+    zₖ₊₁, Cₖ₊₁, Lₖ₊₁ = innovation(ekf, xₖ₊₁ₗₖ, Pₖ₊₁ₗₖ, oₖ)
 
     # Update
     xₖ₊₁ₗₖ₊₁ = state_composition(xₖ₊₁ₗₖ, ES(Lₖ₊₁ * zₖ₊₁))
     Pₖ₊₁ₗₖ₊₁ = Pₖ₊₁ₗₖ - Lₖ₊₁ * Cₖ₊₁ * Pₖ₊₁ₗₖ
 
-    ekf.est_state .= xₖ₊₁ₗₖ₊₁
-    ekf.est_cov .= Pₖ₊₁ₗₖ₊₁
+    ekf.est_state = xₖ₊₁ₗₖ₊₁
+    ekf.est_cov = Pₖ₊₁ₗₖ₊₁
 
     return nothing
 end
 
 
-function estimateState!(ekf::ErrorStateFilter{S, ES, IN, M, EM},
-                        input::IN, measurement::M, dt::Float64
-                        )::Nothing where {S<:State, ES<:ErrorState, IN<:Input,
-                                            M<:Measurement, EM<:ErrorMeasurement}
+function estimateState!(ekf::ErrorStateFilter{S, ES, IN},
+                        input::IN,
+                        measurement::M,
+                        dt::Float64
+                        )::Nothing where {S<:State, ES<:ErrorState, IN<:Input, M<:Measurement}
     # Relabeling
     uₖ = input
     yₖ = measurement
