@@ -30,7 +30,6 @@ function prediction!(ekf::ErrorStateFilter{S, ES, IN, Nₛ, Nₑₛ, Nᵢₙ, L�
                      dt::T,
                      )::Nothing where {S<:State, ES<:ErrorState, IN<:Input, Nₛ, Nₑₛ, Nᵢₙ, Lₑₛ, T}
     xₖₗₖ = S(ekf.est_state)
-    return nothing
     Pₖₗₖ = ekf.est_cov
     W = ekf.process_cov
 
