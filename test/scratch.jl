@@ -6,6 +6,16 @@ using BenchmarkTools
 using Test
 
 dt = .1
+# Test Performance of IMU Vicon Filter
+state = ComSys.ImuState{Float32}(zeros(3)..., [1.,0,0,0]..., zeros(9)...)
+stateErr = ComSys.ImuError{Float32}(zeros(15)...)
+input = ComSys.ImuInput{Float32}(zeros(6))
+meas = ComSys.ViconMeasure{Float32}(zeros(3)..., [1.,0,0,0]...)
+measErr = ComSys.ViconError{Float32}(zeros(6))
+
+EKF.state_composition(state, stateErr)
+
+# %%
 state = ComSys.ImuState(zeros(3)..., [1.,0,0,0]..., zeros(9)...)
 input = ComSys.ImuInput(zeros(6))
 meas = ComSys.ViconMeasure(zeros(3)..., [1.,0,0,0]...)
@@ -19,8 +29,10 @@ oriObs = EKF.Observation(meas, meas_cov)
 
 b = @benchmark begin
     EKF.prediction!($ekf, $input, $dt)
-    EKF.update!($ekf, $oriObs)
 end
 @test maximum(b.gctimes) == 0  # no garbage collection
 @test b.memory == 0            # no dynamic memory allocations
 display(b)
+
+# %%
+@btime ComSys.ImuState($ekf.est_state)
