@@ -1,5 +1,5 @@
 ###############################################################################
-# State and State Error 
+# State and State Error
 ###############################################################################
 struct LeggedState{T} <: EKF.State{28, T}
     rx::T; ry::T; rz::T
@@ -10,7 +10,7 @@ struct LeggedState{T} <: EKF.State{28, T}
     p3x::T; p3y::T; p3z::T
     p4x::T; p4y::T; p4z::T
     αx::T; αy::T; αz::T
-    βx::T; βy::T; βz::T 
+    βx::T; βy::T; βz::T
 end
 
 struct LeggedError{T} <: EKF.ErrorState{27, T}
@@ -20,13 +20,13 @@ struct LeggedError{T} <: EKF.ErrorState{27, T}
     p1x::T; p1y::T; p1z::T
     p2x::T; p2y::T; p2z::T
     p3x::T; p3y::T; p3z::T
-    p4x::T; p4y::T; p4z::T 
+    p4x::T; p4y::T; p4z::T
     αx::T; αy::T; αz::T
-    βx::T; βy::T; βz::T 
+    βx::T; βy::T; βz::T
 end
 
 ###############################################################################
-# Control Input 
+# Control Input
 ###############################################################################
 struct ImuInput{T} <: EKF.Input{6, T}
     v̇𝑥::T; v̇𝑦::T; v̇𝑧::T
@@ -34,7 +34,7 @@ struct ImuInput{T} <: EKF.Input{6, T}
 end
 
 ###############################################################################
-# Observation Model 
+# Observation Model
 ###############################################################################
 struct ContactMeasure{T} <: EKF.Measurement{3, T}
     px::T; py::T; pz::T
@@ -44,40 +44,19 @@ struct ErrorContactMeasure{T} <: EKF.ErrorMeasurement{3, T}
     px::T; py::T; pz::T
 end
 
-mutable struct ContactObservation1{T} <: EKF.Observation{T}
-    measurement::ContactMeasure{T}
-    measure_cov::SMatrix{length(ContactMeasure), length(ContactMeasure), T, length(ContactMeasure) * length(ContactMeasure)}
-end
-
-mutable struct ContactObservation2{T} <: EKF.Observation{T}
-    measurement::ContactMeasure{T}
-    measure_cov::SMatrix{length(ContactMeasure), length(ContactMeasure), T, length(ContactMeasure) * length(ContactMeasure)}
-end
-
-mutable struct ContactObservation3{T} <: EKF.Observation{T}
-    measurement::ContactMeasure{T}
-    measure_cov::SMatrix{length(ContactMeasure), length(ContactMeasure), T, length(ContactMeasure) * length(ContactMeasure)}
-end
-
-mutable struct ContactObservation4{T} <: EKF.Observation{T}
-    measurement::ContactMeasure{T}
-    measure_cov::SMatrix{length(ContactMeasure), length(ContactMeasure), T, length(ContactMeasure) * length(ContactMeasure)}
-end
-
 # ###############################################################################
-# #                               Process and Process Jacobian 
+# #                               Process and Process Jacobian
 # ###############################################################################
-
 function EKF.process(x::LeggedState, u::ImuInput, h::Float64)::LeggedState
     g = @SVector [0,0,9.81]
     f, ω = getComponents(u)
     r, q, v, p1, p2, p3 ,p4, α, β = getComponents(x)
-    C = q; 
+    C = q;
 
-    # Integrate 
+    # Integrate
     rₖ₊₁ = r + h*v + 0.5*h^2*(C*(f-α)-g)
 	vₖ₊₁ = v + h*(C*(f - α) - g)
-    qₖ₊₁ = Rotations.params(q) + 0.5 * Rotations.∇differential(C) * (ω - β) * h 
+    qₖ₊₁ = Rotations.params(q) + 0.5 * Rotations.∇differential(C) * (ω - β) * h
     qₖ₊₁ = qₖ₊₁ / norm(qₖ₊₁)
 
     return LeggedState(rₖ₊₁...,qₖ₊₁..., vₖ₊₁..., p1..., p2..., p3..., p4..., α..., β...)
@@ -103,35 +82,35 @@ end
 
 
 ###############################################################################
-#   Measurement and measure joacbians 
+#   Measurement and measure joacbians
 ###############################################################################
 
-function EKF.measure(::Type{ContactObservation1{T}}, x::LeggedState)::ContactMeasure where T 
+function EKF.measure(::Type{ContactObservation1{T}}, x::LeggedState)::ContactMeasure where T
     r, q, v, p1, p2, p3 ,p4, α, β = getComponents(x)
-    p_body = q' * (p1  - r) 
+    p_body = q' * (p1  - r)
     return ContactMeasure(p_body...)
 end
 
-function EKF.measure(::Type{ContactObservation2{T}}, x::LeggedState)::ContactMeasure where T 
+function EKF.measure(::Type{ContactObservation2{T}}, x::LeggedState)::ContactMeasure where T
     r, q, v, p1, p2, p3 ,p4, α, β = getComponents(x)
-    p_body = q' * (p2  - r) 
+    p_body = q' * (p2  - r)
     return ContactMeasure(p_body...)
 end
 
-function EKF.measure(::Type{ContactObservation3{T}}, x::LeggedState)::ContactMeasure where T 
+function EKF.measure(::Type{ContactObservation3{T}}, x::LeggedState)::ContactMeasure where T
     r, q, v, p1, p2, p3 ,p4, α, β = getComponents(x)
-    p_body = q' * (p3  - r) 
+    p_body = q' * (p3  - r)
     return ContactMeasure(p_body...)
 end
 
-function EKF.measure(::Type{ContactObservation4{T}}, x::LeggedState)::ContactMeasure where T 
+function EKF.measure(::Type{ContactObservation4{T}}, x::LeggedState)::ContactMeasure where T
     r, q, v, p1, p2, p3 ,p4, α, β = getComponents(x)
-    p_body = q' * (p4  - r) 
+    p_body = q' * (p4  - r)
     return ContactMeasure(p_body...)
 end
 
 
-function EKF.error_measure_jacobian(::Type{ContactObservation1{T}}, xₖ::LeggedState)::SMatrix{length(ErrorContactMeasure), length(LeggedError), Float64} where T 
+function EKF.error_measure_jacobian(::Type{ContactObservation1{T}}, xₖ::LeggedState)::SMatrix{length(ErrorContactMeasure), length(LeggedError), Float64} where T
     A = ForwardDiff.jacobian(st->EKF.measure(ContactObservation1{T}, LeggedState(st)), SVector(xₖ))
 
     qₖ = Rotations.UnitQuaternion(xₖ.qw, xₖ.qx, xₖ.qy, xₖ.qz)
@@ -153,7 +132,7 @@ function EKF.error_measure_jacobian(::Type{ContactObservation2{T}}, xₖ::Legged
     return A * Jₖ
 end
 
-function EKF.error_measure_jacobian(::Type{ContactObservation3{T}}, xₖ::LeggedState)::SMatrix{length(ErrorContactMeasure), length(LeggedError), Float64} where T 
+function EKF.error_measure_jacobian(::Type{ContactObservation3{T}}, xₖ::LeggedState)::SMatrix{length(ErrorContactMeasure), length(LeggedError), Float64} where T
     A = ForwardDiff.jacobian(st->EKF.measure(ContactObservation3{T}, LeggedState(st)), SVector(xₖ))
 
     qₖ = Rotations.UnitQuaternion(xₖ.qw, xₖ.qx, xₖ.qy, xₖ.qz)
@@ -164,7 +143,7 @@ function EKF.error_measure_jacobian(::Type{ContactObservation3{T}}, xₖ::Legged
     return A * Jₖ
 end
 
-function EKF.error_measure_jacobian(::Type{ContactObservation4{T}}, xₖ::LeggedState)::SMatrix{length(ErrorContactMeasure), length(LeggedError), Float64} where T 
+function EKF.error_measure_jacobian(::Type{ContactObservation4{T}}, xₖ::LeggedState)::SMatrix{length(ErrorContactMeasure), length(LeggedError), Float64} where T
     A = ForwardDiff.jacobian(st->EKF.measure(ContactObservation4{T}, LeggedState(st)), SVector(xₖ))
 
     qₖ = Rotations.UnitQuaternion(xₖ.qw, xₖ.qx, xₖ.qy, xₖ.qz)
@@ -177,7 +156,7 @@ end
 
 
 ###############################################################################
-#                          Compositions 
+#                          Compositions
 ###############################################################################
 
 function EKF.state_composition(s::LeggedState, ds::LeggedError)
@@ -192,10 +171,10 @@ function EKF.state_composition(s::LeggedState, ds::LeggedError)
 	v = v + dv
 	α = α + dα
 	β = β + dβ
-    p1 = p1 + dp1 
-    p2 = p2 + dp2 
-    p3 = p3 + dp3 
-    p4 = p4 + dp4 
+    p1 = p1 + dp1
+    p2 = p2 + dp2
+    p3 = p3 + dp3
+    p4 = p4 + dp4
 
     return LeggedState(r..., qₖ₊₁..., v..., p1..., p2..., p3..., p4..., α..., β...)
 end
@@ -204,14 +183,14 @@ function EKF.measurement_error(m2::ContactMeasure, m1::ContactMeasure)::ErrorCon
     p1 = @SVector [m1.px, m1.py, m1.pz]
     p2 = @SVector [m2.px, m2.py, m2.pz]
 
-    pos_er = p2 - p1 
+    pos_er = p2 - p1
 
     dx = ErrorContactMeasure(pos_er)
     return dx
 end
 
 ###############################################################################
-#                          Utilities 
+#                          Utilities
 ###############################################################################
 
 function getComponents(x::LeggedState)

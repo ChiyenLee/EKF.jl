@@ -1,39 +1,26 @@
+using Revise
 import EKF
-import EKF.CommonSystems as comSys
-
-import Rotations
-import LinearAlgebra: I
+import EKF.CommonSystems as ComSys
+using StaticArrays
 using BenchmarkTools
-import ForwardDiff
+using Test
 
-# %%
-dt = 0.1
-est_state = comSys.ImuState(rand(3)..., Rotations.params(rand(Rotations.UnitQuaternion))..., rand(9)...)
-input = comSys.ImuInput(rand(6)...)
-measurement = comSys.ViconMeasure(rand(3)..., Rotations.params(rand(Rotations.UnitQuaternion))...)
+dt = .1
+state = ComSys.ImuState(zeros(3)..., [1.,0,0,0]..., zeros(9)...)
+input = ComSys.ImuInput(zeros(6))
+meas = ComSys.ViconMeasure(zeros(3)..., [1.,0,0,0]...)
+est_cov = @MMatrix [i==j ? 1.5 : 0. for i = 1:15, j = 1:15]
+process_cov = @MMatrix [i==j ? .3 : 0. for i = 1:15, j = 1:15]
 
-est_cov = Matrix(2.2 * I(length(comSys.ImuError)))
-process_cov = Matrix(0.5 * I(length(comSys.ImuError)))
-measure_cov = Matrix(0.005 * I(length(comSys.ViconError)))
+ekf = EKF.ErrorStateFilter{ComSys.ImuState, ComSys.ImuError, ComSys.ImuInput}(state, est_cov, process_cov)
 
-ekf = EKF.ErrorStateFilter{comSys.ImuState, comSys.ImuError, comSys.ImuInput,
-                           comSys.ViconMeasure, comSys.ViconError}(est_state,
-                                                                   est_cov,
-                                                                   process_cov,
-                                                                   measure_cov)
+meas_cov = @SMatrix [i==j ? 1. : 0. for i = 1:6, j = 1:6]
+oriObs = EKF.Observation(meas, meas_cov)
 
-# %%
-b = @benchmark EKF.process($est_state, $input, $dt)
-display(b)
-
-# %%
-b = @benchmark EKF.error_process_jacobian($est_state, $input, $dt)
-display(b)
-
-# %%
-b = @benchmark EKF.prediction!($ekf, $input, $dt)
-display(b)
-
-# %%
-b = @benchmark EKF.update!($ekf, $measurement)
+b = @benchmark begin
+    EKF.prediction!($ekf, $input, $dt)
+    EKF.update!($ekf, $oriObs)
+end
+@test maximum(b.gctimes) == 0  # no garbage collection
+@test b.memory == 0            # no dynamic memory allocations
 display(b)
