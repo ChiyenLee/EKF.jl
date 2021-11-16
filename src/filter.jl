@@ -69,12 +69,16 @@ function update!(ekf::ErrorStateFilter{S, ES, IN, Nₛ, Nₑₛ, Nᵢₙ, Lₑ�
                  )::Nothing where {S<:State, ES<:ErrorState, IN<:Input, Nₛ, Nₑₛ, Nᵢₙ, Lₑₛ, M<:Measurement, Nₘ, Nₑₘ, T,}
     xₖ₊₁ₗₖ = S(SVector{Nₛ,T}(ekf.est_state))
     Pₖ₊₁ₗₖ = ekf.est_cov
+    R = getCovariance(oₖ)
 
     zₖ₊₁, Cₖ₊₁, Lₖ₊₁ = innovation(ekf, xₖ₊₁ₗₖ, Pₖ₊₁ₗₖ, oₖ)
 
     # Update
     xₖ₊₁ₗₖ₊₁ = state_composition(xₖ₊₁ₗₖ, ES(SVector{Nₑₛ,T}(Lₖ₊₁ * zₖ₊₁)))
-    Pₖ₊₁ₗₖ₊₁ = Pₖ₊₁ₗₖ - Lₖ₊₁ * Cₖ₊₁ * Pₖ₊₁ₗₖ
+
+    # Joseph form covariance update
+    A = (I - Lₖ₊₁ * Cₖ₊₁)
+    Pₖ₊₁ₗₖ₊₁ = A * Pₖ₊₁ₗₖ * A' + Lₖ₊₁ * R * Lₖ₊₁'
 
     ekf.est_state = xₖ₊₁ₗₖ₊₁
     ekf.est_cov = Pₖ₊₁ₗₖ₊₁
