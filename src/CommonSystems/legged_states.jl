@@ -184,8 +184,8 @@ function EKF.state_composition(s::LeggedState, ds::LeggedError)
     r, q, v, p1, p2, p3 ,p4, α, β = getComponents(s)
     dr, dϕ, dv, dp1, dp2, dp3 , dp4, dα, dβ = getComponents(ds)
 
-	ang_error = Rotations.RotationError(SVector{3, Float64}(dϕ), CayleyMap())
-	qₖ₊₁ = Rotations.add_error(UnitQuaternion(q), ang_error)
+	ang_error = Rotations.RotationError(SVector{3, Float64}(dϕ), Rotations.CayleyMap())
+	qₖ₊₁ = Rotations.add_error(Rotations.UnitQuaternion(q), ang_error)
 	qₖ₊₁ = @SVector [qₖ₊₁.w, qₖ₊₁.x, qₖ₊₁.y, qₖ₊₁.z]
 
 	r = r + dr
